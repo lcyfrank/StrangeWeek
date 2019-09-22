@@ -18,4 +18,4 @@ Except the above, I'll also learn some basic knowledges about computer, like net
 
 So, this is the first week I decide to do this, the following link is what I have learned in this week.
 
-[2019/09/22](./2019/09/22.md)
+[2019/09/22](./2019/09/22/)
