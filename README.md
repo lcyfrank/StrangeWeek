@@ -20,4 +20,8 @@ So, this is the first week I decide to do this, the following link is what I hav
 
 [2019/09/22](./2019/09/22/)
 
+And the following weeks:
+
+[2019/09/29](./2019/09/29/)
+
 *Note: Because my English is not good, so in the detail content, I'll mainly record by Chinese.*
