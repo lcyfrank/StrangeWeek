@@ -1,8 +1,8 @@
 # JavaScript 引擎的一些优化思想
 
 参考链接：
-<https://mathiasbynens.be/notes/shapes-ics>
-<https://mathiasbynens.be/notes/prototypes>
+* <https://mathiasbynens.be/notes/shapes-ics>
+* <https://mathiasbynens.be/notes/prototypes>
 
 首先，JavaScript 引擎中代码的执行以及执行的优化过程大致如下图所示：
 
