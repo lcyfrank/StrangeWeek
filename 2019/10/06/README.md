@@ -23,7 +23,7 @@
 
 之后是看了 Web 的一章，这章主要讲解了对于访问控制的攻击。*不过总感觉介绍的访问控制的攻击与之前提到的遍历目标站点的全部隐藏内容有很大的重复，都是通过遍历、探索等手段，来验证目标站点存在的访问控制的漏洞。*访问控制的漏洞主要分为：管理相关功能 URL 暴露、基于 ID 的资源无限制访问、多步骤的功能的绕过（可以跳过前一阶段内容）、静态资源无限制访问、HTTP 不同方法之间的不限制访问、以及一些本来就不安全的访问控制。
 
-最后，本周学了 [JavaScript 引擎的优化]((https://github.com/lcyfrank/Week/blob/master/2019/10/06/js_engine.md))的一些思想，大体了解了 JavaScript 中对象的存储形式、Inline Cache 的概念、对于方法的访问等。
+最后，本周学了 [JavaScript 引擎的优化](https://github.com/lcyfrank/Week/blob/master/2019/10/06/js_engine.md)的一些思想，大体了解了 JavaScript 中对象的存储形式、Inline Cache 的概念、对于方法的访问等。
 
 ## 总结
 

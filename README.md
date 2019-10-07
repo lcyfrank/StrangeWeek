@@ -22,7 +22,7 @@ So, this is the first week I decide to do this, the following link is what I hav
 
 And the following weeks:
 
-[2019/09/29](./2019/09/29/)
-[2019/10/06](./2019/10/06/)
+* [2019/09/29](./2019/09/29/)
+* [2019/10/06](./2019/10/06/)
 
 *Note: Because my English is not good, so in the detail content, I'll mainly record by Chinese.*
