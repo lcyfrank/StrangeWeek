@@ -24,5 +24,6 @@ And the following weeks:
 
 * [2019/09/29](./2019/09/29/)
 * [2019/10/06](./2019/10/06/)
+* [2019/10/20](./2019/10/20/)
 
 *Note: Because my English is not good, so in the detail content, I'll mainly record by Chinese.*
