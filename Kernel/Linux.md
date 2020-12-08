@@ -199,3 +199,28 @@ void escalate_privs() {
 CR4 的原本的值（即 CR4_VALUE）通常可以使用 MOV 指令移到其他寄存器，方便构造 ROP 链的时候对值进行修改。此外，还有一些小技巧，比如当进行 Stack Pivot 的时候，如果 RAX 等寄存器的值是不可控的，因此无法可靠地控制转移栈的目标地址，此时可以将转移后的栈的地址看作一个随机值，然后在用户态空间大量申请内存，将 ROP 链进行堆喷，从而进行爆破。
 
 除了构造 ROP 链对 SMEP 进行关闭之外，还可以直接使用 ROP 链调用 `commit_creds(prepare_kernel_cred(0));` 函数，从而完成特权提升。
+
+在完成进程特权级提升之后，为了获得 Shell，需要返回用户态执行 `system("/bin/sh");`，因此需要执行 `iretq` 指令将进程从内核态返回至用户态，`iretq` 需要满足一定的栈条件：
+
+<img width="600px" src="./img/iret_condition">
+
+因此，可以在一开始获取 CS、SS、EFLAGS 三个寄存器的值，进行保存：
+
+```c
+unsigned long user_cs;
+unsigned long user_ss;
+unsigned long user_rflags;
+
+static void save_state() {
+    asm(
+        "movq %%cs, %0\n"
+        "movq %%ss, %1\n"
+        "pushfq\n"
+        "popq %2\n"
+        : "=r" (user_cs), "=r" (user_ss), "=r" (user_rflags) : : "memory" );
+}
+```
+
+之后可以使用变量 `user_cs`、`user_ss`、`user_rflags` 对栈进行布局。而 RIP 和 RSP 分别是返回用户态之后执行的指令地址和栈地址，因此可以用来控制执行特定代码。
+
+此外，在执行 `iretq` 之前，在 **64-bit** 系统上还需要执行 `swapgs` 对 GS 寄存器的值进行恢复（在进入内核态的时候会将用户态的 GS 保存到某个地方）。
