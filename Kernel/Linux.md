@@ -4,7 +4,87 @@
 
 ### 从编译内核开始
 
-[To-Do]
+* <https://blog.k3170makan.com/2020/11/linux-kernel-exploitation-0x0-debugging.html>
+
+环境配置：
+
+```sh
+$ sudo apt-get update
+$ sudo apt-get upgrade
+$ sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison qemu-system-x86 debootstrap
+```
+
+接下来需要下载目标版本的内核：
+
+```sh
+$ wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.9.7.tar.xz
+```
+
+然后使用 `tar -xvf` 对内核进行解压，得到内核源码。
+
+在对内核源码进行编译之前，需要对源码进行一些基本的配置。如果使用的宿主机是 Linux 的，那么可以直接拷贝一份配置文件到目标内核源码目录下：
+
+```sh
+$ cp /boot/config-5.4.0-53-generic linux-5.9.7/.config
+```
+
+之后到内核源码目录下，执行 `make kvmconfig` 命令（`make kvm_guest.config`），将一些配置选项进行合并。为了可以更好地调试内核，还需要添加一些配置选项，因此打开 `.config` 文件，加入（更改成）如下选项：
+
+```sh
+CONFIG_KCOV=y
+CONFIG_DEBUG_INFO=y
+CONFIG_KASAN=y
+CONFIG_KASAN_INLINE=y
+CONFIG_CONFIGFS_FS=y
+CONFIG_SECURITYFS=y
+# CONFIG_RANDOMIZE_BASE is not set
+```
+
+配置完成后执行 `make savedefconfig` 对配置进行保存，最后执行（`n` 为一个数字，表示并行数）：
+
+```sh
+$ make -jn
+```
+
+对内核进行编译。
+
+接下来需要构建启动镜像文件。这里使用 `syzkaller` 提供的工具进行构建，因此先下载 `syzkaller`：
+
+```sh
+$ mkdir image
+$ git clone https://github.com/google/syzkaller.git
+```
+
+之后将 `syzkaller` 目录下的 `create_image.sh` 拷贝到 `image` 目录中：
+
+```sh
+$ cp syzkaller/tools/create_image.sh ./image
+```
+
+之后，进入 `image` 目录，执行 `create_image.sh` 脚本，创建对应镜像文件。
+
+<img width="600px" src="./img/syzkaller_create_img">
+
+最后，可以使用 `qemu` 启动内核：
+
+```sh
+qemu-system-x86_64 \
+  -kernel ../arch/boot/x86_64/bzImage \
+  -append "console=ttyS0 root=/dev/sda earlyprintk=serial nokaslr"\
+  -hda ./stretch.img \
+  -net user,hostfwd=tcp::10021-:22 -net nic \
+  -enable-kvm \
+  -nographic \
+  -m 2G \
+  -smp 2 \
+  -pidfile vm.pid \
+  2>&1 | tee vm.log
+```
+
+成功启动之后如下所示：
+
+<img width="600px" src="./img/qemu_boot_succ">
+
 
 ### 文件系统
 
