@@ -65,6 +65,8 @@ $ cp syzkaller/tools/create_image.sh ./image
 
 <img width="600px" src="./img/syzkaller_create_img">
 
+在执行 `create_image.sh` 之前，如果想对启动镜像文件进行定制，例如往该镜像文件中写入其他驱动文件等，可以对 `create_image.sh` 进行修改，在该脚本创建镜像文件之前将需要添加的文件加入到 `$DIR` 目录下，之后再执行 `create_image.sh` 即可。
+
 最后，可以使用 `qemu` 启动内核：
 
 ```sh
@@ -85,6 +87,7 @@ qemu-system-x86_64 \
 
 <img width="600px" src="./img/qemu_boot_succ">
 
+如果想要关闭该 QEMU 虚拟机，在 `vm.pid` 所在目录下执行 `kill $(cat vm.pid)` 即可。
 
 ### 文件系统
 
@@ -233,6 +236,43 @@ root_inode->i_private =
 从而完成虚拟文件系统（映像）的挂载。
 
 ## 内核调试
+
+### 使用 QEMU 与 gdb 进行调试
+
+* 使用 `gdb` 调试内核：<https://nixos.wiki/wiki/Kernel_Debugging_with_QEMU>
+* 一些使用 `gdb` 调试内核的技巧：<https://www.starlab.io/blog/using-gdb-to-debug-the-linux-kernel>
+
+当使用 **QEMU** 启动内核时，可以指定 `-s` 和 `-S` 参数，来支持 `gdb` 对内核进行连接。其中 `-s`  参数表示 `-gdb tcp::1234`，即在 `1234` 端口处开启 `gdbserver` 服务，可以直接使用 `gdb` 进行连接；`-S` 参数表示不立即启动内核，指导 `gdb` 连接之后由 `gdb` 控制，这使得研究人员可以进行下断点等操作。
+
+之后，使用 `vmlinux` 作为指定给 `gdb` 的参数，如 `gdb ./vmlinux`，进入 `gdb` 命令行，然后执行 `target remote :1234` 命令，即可使用 `gdb` 调试目标内核。
+
+<img width="800px" src="./img/gdb_qemu">
+
+除了可以对内核本身下断点进行调试之外，还可以对驱动模块进行调试。例如通过 `insmod` 往内核加载了一个驱动：
+
+```sh
+$ insmod debug_driver.ko
+```
+
+首先，我们在 **QEMU** 中查看该模块的加载地址：
+
+```sh
+$ cat /proc/modules
+```
+
+可以得到驱动的加载地址，然后在 `gdb` 中，使用这个加载地址加载相应的符号表：
+
+<img width="600px" src="./img/add_symbol">
+
+然后使用 `break` 对对应的函数下断点即可。
+
+在调试过程中，驱动中某个符号（变量）实际的地址需要取驱动加载地址加上该符号（变量）在驱动中的偏移。获得驱动每一节在内核中的加载地址：
+
+```sh
+cat /sys/module/[drive_name]/sections/[name]
+```
+
+### 其他方式
 
 [To-Do]
 
