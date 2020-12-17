@@ -294,11 +294,36 @@ cat /sys/module/[drive_name]/sections/[name]
 
 上述两个函数的地址可以通过 `/proc/kallsyms` 查看（有时候需要 `sudo`）。
 
+此外，有时候在获得任意内存写内核利用原语的时候，可以通过直接对 `task_struct` 结构体变量中的 `cred` 字段的对应的值进行更改的方式，将其值更改为 `0`，从而实现权限提升：
+
+```c
+struct task_struct {
+    // …
+    const struct cred __rcu *real_cred;  // 控制什么样的权限可以控制这个进程
+    const struct cred __rcu *cred;  // 控制这个进程的权限
+    // …
+}
+
+struct cred {
+    atomic_t usage;
+    kuid_t uid;
+    kgid_t gid;
+    kuid_t suid;
+    kgid_t sgid;
+    kuid_t euid;
+    kgid_t egid;
+    // …
+}
+```
+
+那么如何得到 `task_struct` 的地址呢？在已经泄漏内核基地址的情况下，可以参照内核 `find_task_by_pid_ns` 函数的方法，使用当前进程的 `pid` 对当前进程的 `task_struct` 结构地址进行查找。
+
 ### ret2usr
 
 * <https://duasynt.com/slides/smep_bypass.pdf>
 * <https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/linux-kernel-rop-ropping-your-way-to-part-1>
 * <https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/linux-kernel-rop-ropping-your-way-to-part-2>
+* 一个例题：<https://ctf-wiki.github.io/ctf-wiki/pwn/linux/kernel/ret2usr-zh/>
 
 基本原理：用户态内存空间无法访问内核态内存空间，但是内核态内存空间可以访问用户态内存空间。因此通过修改内核态内存空间中的指针等数据指向用户态空间的代码，使得在 **Ring 0** 特权级的情况下执行用户态的代码，从而实现权限提升。如下图所示，修改内核态的 *Function ptr* 指向 `escalate_privs()` 或者 *Data struct ptr* 指向用户态的 *Data struct*，再指向 `escalate_privs()` 函数。通常 `escalate_privs()` 函数的内容如下：
 
