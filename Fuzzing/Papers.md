@@ -1,7 +1,7 @@
 # Papers
 
-* [CollAFL: Path Sensitive Fuzzing](#collafl:-path-sensitive-fuzzing)
-* [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot:-a-versatile-configurable-extensible-fuzzing-framework)
+* [CollAFL: Path Sensitive Fuzzing](#collafl-path-sensitive-fuzzing)
+* [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
 * [The Art, Science, and Engineering of Fuzzing: A Survey](#the-art-science-and-engineering-of-fuzzing-a-survey)
 
 ---
