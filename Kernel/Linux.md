@@ -280,6 +280,8 @@ $ cat /proc/modules
 cat /sys/module/[drive_name]/sections/[name]
 ```
 
+在调试过程中，通过查看 startup（startup_64） 的地址可以得到内核基址。
+
 ### 其他方式
 
 [To-Do]
