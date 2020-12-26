@@ -40,6 +40,8 @@ CONFIG_SECURITYFS=y
 # CONFIG_RANDOMIZE_BASE is not set
 ```
 
+其中，**CONFIG_KASAN** 表示开启 **KASAN**，更好地对 Linux 内核的内存访问错误进行检测。之后可以指定 **CONFIG_KASAN_INLINE** 还是 **CONFIG_KASAN_OUTLINE**，CONFIG_KASAN_OUTLINE 会得到更小的二进制内核，而 CONFIG_KASAN_INLINE 可以得到更快的执行速度。关于 KASAN 更详细的内容可以查看：<https://www.kernel.org/doc/html/latest/dev-tools/kasan.html>
+
 配置完成后执行 `make savedefconfig` 对配置进行保存，最后执行（`n` 为一个数字，表示并行数）：
 
 ```sh
