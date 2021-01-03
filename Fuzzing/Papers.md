@@ -4,6 +4,7 @@
 * [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
 * [The Art, Science, and Engineering of Fuzzing: A Survey](#the-art-science-and-engineering-of-fuzzing-a-survey)
 * [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution)
+* [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
 
 ---
 
@@ -220,3 +221,32 @@
 主要看右边一列，一共超过一半的基本块是基于符号执行得到的输入之后突变得来的测试用例所覆盖到的。因此符号执行在程序理解以及相应输入生成这方面还是起到了比较大的作用。
 
 *但是作者没有对剩下将近一半的程序为什么无法发现漏洞做进一步分析，如果再进行分析是不是还能发现什么更好的方法*？最后，作者也对当前工作的一些不足做了总结，主要是在模糊测试方面，由于路径统计粒度较大，因此可能会漏过一些本应是新的状态转移的部分，从而影响符号执行引擎对程序状态的判断，而忽视一些输入的求解。另一方面是在符号执行方面，可能会将一些 `General` 输入误判为 `Specific` 输入而频繁调用符号执行引擎，从而影响模糊测试的整体性能。
+
+## PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode
+
+*Proceedings of the 2018 26th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering*
+
+这篇文章的作者认为目前大部分模糊测试相关的工作仅在单实例运行的情况下有较好的改善，而无法将这些改善在并行化模糊测试中进行同步。基于此，作者设计出多个实例之间有效的信息同步和任务分发方式，将单实例下比较有效的信息在多个实例之间共享，从而提高并行化模糊测试的效率。
+
+作者首先使用 **AFLFast** 和 **FairFuzz** 在并行模式下进行实验，发现这两个在单实例模式下效果很好的的模糊测试工具在并行模式下反而没有 **AFL** 好。作者分析发现出现这个现象的主要原因有两点：
+
+1. **AFLFast** 和 **FairFuzz** 获取到的信息没有在多个实例之间同步；
+2. 并行模式下相同的多个实例会由于相似的指导信息，执行相似的模糊测试行为；
+
+因此，作者基于上述两个原因，设计了一种在不同的模糊测试实例之间信息的同步机制，同时作者通过对程序分支分组来将模糊测试划分成不同的子任务，分发到不同的模糊测试实例中进行。最终作者实现了一个并行框架 **PAFL**，整体架构图如下所示。
+
+<img src="./img/pafl/overview.png" width="600px">
+
+在 PAFL 中，模糊测试过程收集到的信息分为全局信息和局部信息。局部信息由每个模糊测试实例本身维护，全局信息则由所有模糊测试实例维护。由于模糊测试执行的过程很快，因此每一次每个实例都执行完就共享信息是不现实的。作者使用全局信息和局部信息将信息共享的频率降低，每次同步时都分为三步：1. 上传局部信息；2. 更新全局信息；3. 拉取全局信息；从而完成信息在多个实例之间的共享。
+
+在任务划分机制中，作者通过种子选择阶段来使不同模糊测试实例针对不同的程序区域进行探索。作者将记录分支的 Bitmap 划分成 `n` 个区间，其中 `n` 是模糊测试实例的数量。然后对于每一个种子，获取其命中的最少的分支的数量的分支，如果该分支位于当前模糊测试实例所划分的区间内，则认为该种子属于当前模糊测试实例，交给当前模糊测试实例突变。否则，跳过该种子。
+
+作者在 AFLFast 和 FairFuzz 上分别实现了这套 PAFL 方法，并在部分真实程序上进行实验，实验结果如下表：
+
+<img src="./img/pafl/cov_eval.png" width="600px">
+
+作者认为，这种信息共享机制以及任务划分的方式可以使得模糊测试的过程覆盖更多的分支（*但是感觉提高并不是很明显？*）
+
+此外，作者还找了 GitHub 上的一些开源程序，最终拿到了 25 个 CVE。
+
+*思考：这一部分对于模糊测试性能的提高，是信息共享的功劳还是任务划分的功劳呢？*
