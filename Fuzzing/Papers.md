@@ -6,6 +6,7 @@
 * [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution)
 * [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
 * [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing)
+* [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers)
 
 ---
 
@@ -51,7 +52,7 @@
 * 作者认为，那些存在大量未遍历到的邻居基本块后继节点的测试用例也应该优先被突变；
 * 作者认为，具有大量操作内存的指令的基本块更有可能存在漏洞，因此也需要优先被突变；
 
-基于上述这些思想，作者实现了原型系统，并进行了充足的实验，最终性能得到了很大的提升。
+这些基本块的信息都是通过静态分析得到，因此不会造成额外的开销。基于上述这些思想，作者实现了原型系统，并进行了充足的实验，最终性能得到了很大的提升。
 
 ## FOT: A Versatile, Configurable, Extensible Fuzzing Framework
 
@@ -322,3 +323,9 @@
 <img src="./img/qsym/qsym_opti_solve_level.png" width="800px">
 
 可以看到使用效率高的符号执行结合模糊测试还是可以获得较多的程序覆盖率。
+
+## MOpt: Optimized Mutation Scheduling for Fuzzers
+
+*28th USENIX Security Symposium (USENIX Security 19). 2019.*
+
+这篇文章作者强调，对于模糊测试来说，性能很大程度上取决于突变策略的选择。作者认为现有的模糊测试工具通常依照特定的分布选择突变操作，效率较低。因此，作者提出了 **MOpt**，使用粒子群优化算法（Particle Swarm Optimization）找到更适合当前模糊测试的突变操作。
