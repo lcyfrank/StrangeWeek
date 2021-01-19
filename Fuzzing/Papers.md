@@ -3,10 +3,11 @@
 * [CollAFL: Path Sensitive Fuzzing](#collafl-path-sensitive-fuzzing)
 * [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
 * [The Art, Science, and Engineering of Fuzzing: A Survey](#the-art-science-and-engineering-of-fuzzing-a-survey)
-* [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution)
+* [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/shellphish/driller)
 * [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
-* [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing)
-* [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers)
+* [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/sslab-gatech/qsym)
+* [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
+* [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
 
 ---
 
@@ -381,3 +382,15 @@
 <img src="./img/mopt/crash.png" width="800px">
 
 之后，作者针对 LAVA-M 数据集合也做了相应的实验，最后，作者通过对种子的调整，以及实现的不同，分别对 **MOpt** 的不同的模块进行了实验。
+
+## IJON: Exploring Deep State Spaces via Fuzzing
+
+*2020 IEEE Symposium on Security and Privacy (SP)*
+
+这篇文章的作者认为在模糊测试过程中，为了探索更多的路径，发现更多更深的漏洞，一些专家知识是不可少的。作者认为，单一的完全自动化的模糊测试算法无法适应所有应用程序，而正常的模糊测试过程研究人员通常先执行自动的模糊测试流程，一段时间之后，分析代码，之后可以移除一些不重要的但是影响覆盖率的代码（比如校验和）；或者对模糊测试的突变策略进行转化。因此，对于有效的模糊测试过程来说，适当的人工交互还是有必要的。基于这个思想，作者提出了借助人工的分析，对目标程序的状态空间进行注解，从而指导模糊测试对目标程序状态空间的探索。最终，作者将这一思想实现为以拓展的形式进行实现。
+
+作者首先介绍了基于代码覆盖率指导的模糊测试的基本流程，但是同时作者提到，目前的代码覆盖率指导的模糊测试在模糊测试过程卡住的时候没有任何有效的反馈可以帮助模糊测试继续前进。基于此，作者认为使用代码覆盖率来表示程序状态空间在某些时候是有意义的，但是对于探索全新的路径不太合适，因此，作者观察现有模糊测试生成的测试用例对程序覆盖率的影响，同时分析了程序的状态转移之间的关系，总结得到如下三个情况：
+
+1. 程序的分支是不变的，但是状态由一些值来代表，不同的变量值会代表不同的程序状态；
+2. 程序的值无法表示状态，但是可以通过代码的位置来代表程序状态；
+3. 以上两种情况都不能很好的反映当前程序状态，引入中间状态
