@@ -8,6 +8,7 @@
 * [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/sslab-gatech/qsym)
 * [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
 * [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
+* [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
 
 ---
 
@@ -431,3 +432,5 @@
 可以通过 `IJON_MAX` 指导模糊测试更好地发现整型溢出漏洞。
 
 总的来说，作者通过添加注解的方式，在模糊测试过程中引入了人工的因素，可以更好地表示模糊测试过程的状态，而不是单一地使用覆盖率信息对模糊测试作为指引，作者在最后还提到，将模糊测试与人工干预相结合渐渐开始成为目前研究的一大趋势。
+
+## Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery
