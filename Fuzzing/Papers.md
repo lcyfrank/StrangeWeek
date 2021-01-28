@@ -8,7 +8,7 @@
 * [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/sslab-gatech/qsym)
 * [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
 * [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
-* [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
+* [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
 
 ---
 
