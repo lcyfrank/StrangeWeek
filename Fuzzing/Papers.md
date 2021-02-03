@@ -9,6 +9,7 @@
 * [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
 * [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
 * [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
+* [Send Hardest Problems My Way: Probabilistic Path Prioritization for Hybrid Fuzzing](#send-hardest-problems-my-way-probabilistic-path-prioritization-for-hybrid-fuzzing)
 
 ---
 
@@ -435,6 +436,8 @@
 
 ## Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery
 
+*2019 IEEE Symposium on Security and Privacy (SP)*
+
 这篇文章的作者提到，对于之前的模糊测试过程来说，在突变过程中通常缺乏语法和语义信息的指导。因此作者提出结合类型推导技术，自动化推导出测试用例中每个字节的字段含义，从而更智能地指导模糊测试过程。
 
 作者提到，先前生成式的模糊测试依赖于指定的语法文件，但是过于完备的语法文件可能减少了模糊测试过程的搜索空间，因为可以触发漏洞的测试用例可能并不是完全符合语法的。而对于突变式的模糊测试，由于突变过程过于随机，会降低模糊测试过程的效率。
@@ -498,3 +501,9 @@
 可以看到效率明显增强。
 
 总的来说，作者提出的类型推导的模糊测试方法比较新颖，可以更好地指导模糊测试过程，从而克服了模糊测试过程中盲目突变的缺点，提高模糊测试的效率。
+
+## Send Hardest Problems My Way: Probabilistic Path Prioritization for Hybrid Fuzzing
+
+*NDSS. 2019.*
+
+这篇文章的工作也是聚焦于模糊测试与符号执行的结合。由于模糊测试擅长于探索简单的路径，但是对复杂的路径探索无能为力。而符号执行可以较精确地探索到复杂路径，但是经常会遇到路径爆炸的问题，因此现在有很多工作将符号执行用于辅助模糊测试的路径探索。作者发现，现有的模糊测试与符号执行的结合方式有两种，一种是按需启动符号执行引擎，当模糊测试发现不了新路径后启动符号执行引擎对路径进行探索（Driller）；另一种是量化探索每条路径的成本，然后选择最有效率的一条路径去探索。作者评估了两种方式，发现这两种方式都不是最有效的。
