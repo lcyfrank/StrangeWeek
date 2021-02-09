@@ -12,6 +12,8 @@ My current learning goals are listed below:
 
 * **Binary Analysis**
 
+* **V8 Engine**
+
 Except the above, I'll also learn some basic knowledges about computer, like networking, browsers, etc.
 
 *Note: Because my English is not good, so in the detail content, I'll mainly record by Chinese.*
