@@ -10,6 +10,7 @@
 * [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
 * [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
 * [Send Hardest Problems My Way: Probabilistic Path Prioritization for Hybrid Fuzzing](#send-hardest-problems-my-way-probabilistic-path-prioritization-for-hybrid-fuzzing)
+* [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
 
 ---
 
@@ -546,3 +547,30 @@
 之后，作者同时在 Lava-M 数据集上做了实验，实验结果类似。
 
 总的来说作者就是在符号执行与模糊测试的结合上，是的符号执行对路径探索的选择更有目的性，通过概率来获取那些对于模糊测试来说较难探索到的路径进行探索，从而提高两者结合的性能。
+
+## EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers
+
+*28th USENIX Security Symposium (USENIX Security 19). 2019.*
+
+作者提到，尽管有越来越多的针对模糊测试的优化的工作出现，例如 **AFLFast**、**FairFuzz** 等，但是这些模糊测试工具无法在真实的各种各样的应用程序中具有较强的鲁棒性，通常这些模糊测试工具可能在某些应用程序中有较高的性能，但是在另外的应用程序中性能甚至不如原始的 **AFL**。基于这个发现，作者提出将多个基本的模糊测试工具进行协作，将多样性高的模糊测试工具组装在一起协作，从而提高模糊测试的鲁棒性，对目标应用程序进行更高效地漏洞挖掘。
+
+作者提出 **EnFuzz** 的基本思想是结合多个模糊测试工具的优点对目标应用程序进行模糊测试，例如下列程序：
+
+<img src="./img/enfuzz/example.png" width="600px">
+
+假设有 `fuzz_0` 和 `fuzz_1` 两个模糊测试工具，一个擅长解决 `Magic Str` 的分支，另一个擅长解决 `Magic Num` 的分支，那么如果将这两个模糊测试工具产生的测试用例同步，则最终两个模糊测试工具的组合可以解决图中的所有分支，而单独的模糊测试工具无法达到这种效果。基于这个思想，作者提出了协作模糊测试的两个基本目标：
+
+1. 找到多个多样性较大的不同的基本模糊测试工具；
+2. 实现一种有效的同步机制；
+
+作者将模糊测试工具的多样性定义为如下三种：
+
+1. 种子选择和突变策略的多样性；
+2. 覆盖率信息粒度的多样性；
+3. 输入生成策略的多样性；
+
+作者根据上述三种启发式的多样性定义，手动选择多个基本的模糊测试工具。
+
+在协同阶段，对于每个基本模糊测试工具来说，与单实例运行时的工作一样，执行传统的模糊测试循环，从 `queue` 中选取测试用例，对该测试用例进行突变，生成新的测试用例，使用新的测试用例执行目标程序。如果这个测试用例触发了新的路径，则除了将这个测试用例添加到本地的队列外，还会添加到全局队列，等待同步。
+
+之后，会开启一个 `monitor` 线程，该线程初始化一个全局覆盖率信息，用于记录当前应用程序的模糊测试覆盖率情况。然后该线程会遍历全局队列，将全局队列中的测试用例分配给每一个基本模糊测试实例中（会检测是否能触发新的分支），从而完成测试用例的同步。
