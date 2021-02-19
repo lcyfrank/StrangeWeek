@@ -574,3 +574,37 @@
 在协同阶段，对于每个基本模糊测试工具来说，与单实例运行时的工作一样，执行传统的模糊测试循环，从 `queue` 中选取测试用例，对该测试用例进行突变，生成新的测试用例，使用新的测试用例执行目标程序。如果这个测试用例触发了新的路径，则除了将这个测试用例添加到本地的队列外，还会添加到全局队列，等待同步。
 
 之后，会开启一个 `monitor` 线程，该线程初始化一个全局覆盖率信息，用于记录当前应用程序的模糊测试覆盖率情况。然后该线程会遍历全局队列，将全局队列中的测试用例分配给每一个基本模糊测试实例中（会检测是否能触发新的分支），从而完成测试用例的同步。
+
+作者最终使用 AFL、AFLFast、FairFuzz、libFuzzer、Radamsa 和 QSYM 作为基础模糊测试工具来实现 **EnFuzz**。作者实现了 5 个原型系统来进行实验：
+
+* EnFuzz-A：AFL、AFLFast、FairFuzz 组成，全部由基于 AFL 的模糊测试工具组成；
+* EnFuzz-Q：AFL、AFLFast、FairFuzz、QSYM 组成，除了基于 AFL 的模糊测试工具，还加上了一个符号执行辅助的模糊测试工具；
+* EnFuzz-L：AFL、AFLFast、FairFuzz、libFuzzer 组成，libFuzzer 是以块为单位统计覆盖率信息的；
+* EnFuzz：AFL、AFLFast、libFuzzer、Radamsa 组成，Radamsa 是生成式模糊测试工具；
+* EnFuzz-：由 AFL、AFLFast、FairFuzz 组成，但是没有启用种子同步机制；
+
+作者使用路径数量、分支数量和发现的漏洞数量来评估上述几个原型系统的组合。首先作者在 **LAVA-M** 数据集上进行评测，评测结果如下：
+
+<img src="./img/enfuzz/lava_m.png" width="600px">
+
+可以看到 EnFuzz-Q 的性能有所提升（*但是跟 QSYM 比起来其实提升有限*）
+
+此外，作者在 **Google fuzzer-test-suite** 上进行了评测，评测结果如下：
+
+<img src="./img/enfuzz/google_path.png" width="600px">
+
+<img src="./img/enfuzz/google_branch.png" width="600px">
+
+<img src="./img/enfuzz/google_bug.png" width="600px">
+
+可以看到，各个指标皆较单一的基本模糊测试工具有明显提高。
+
+此外，作者对不同组合的 5 个原型系统进行评测，得到的路径覆盖的结果如下表所示：
+
+<img src="./img/enfuzz/5_comparison_path.png" width="600px">
+
+可以看到，启用了种子共享之后可以较明显提高路径覆盖率，同时组合差异性大的几个模糊测试工具也能较好地提高路径覆盖率，从而提高模糊测试的性能。
+
+作者还在真实程序上部署了多个模糊测试工具，最终发现了 60 多个漏洞，获得了 40 多个 CVE 编号。
+
+这篇文章的工作证明了多个多样性高的基本模糊测试工具的协作可以有效提高模糊测试的性能。
