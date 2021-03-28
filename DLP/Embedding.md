@@ -2,7 +2,7 @@
 
 类似于自然语言处理，由于程序表示形式为文本的源代码或者汇编指令，因此为了更好地使用神经网络对程序进行处理，通常需要对程序进行预处理，将程序的源代码或者汇编指令嵌入到数字空间中，形成向量之后，再进一步进行后续的工作。因此在使用神经网络对程序进行分析、处理之前，需要对嵌入的思想和方式进行大致了解。
 
-* [Distributed Representations of Sentences and Documents](distributed-representations-of-sentences-and-documents)：借助 **Word2vector** 的思想对自然语言文本的段落生成向量表示
+* [Distributed Representations of Sentences and Documents](#distributed-representations-of-sentences-and-documents)：借助 **Word2vector** 的思想对自然语言文本的段落生成向量表示
 
 ---
 
