@@ -1,4 +1,4 @@
-# StrangeWeek
+# Strange Week
 
 *I'm a new comer in the filed of Cyberspace Security, and I wanna be a contributor to the SECURITY. The road is so long, but I believe...*
 
@@ -18,3 +18,7 @@ I create this Repository to **RECORD** my *learning progress*.
   * Some papers from top conferences of *Software Engineering*.
 
 *Note: Because my English is not good, so in the detail content, I'll mainly record by Chinese.*
+
+---
+
+**Strange Week** originally meant **Strange Weak**, but I didn’t want to be *Weak* all the time, so I changed it to **Strange Week**.
