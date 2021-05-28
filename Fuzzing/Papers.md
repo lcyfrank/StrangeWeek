@@ -1,17 +1,37 @@
 # Papers
 
-* [CollAFL: Path Sensitive Fuzzing](#collafl-path-sensitive-fuzzing)
-* [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
+主要记录一些 **Fuzzing** 相关的工作的论文。
+
+## Survey / Evaluation
+
 * [The Art, Science, and Engineering of Fuzzing: A Survey](#the-art-science-and-engineering-of-fuzzing-a-survey)
-* [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/shellphish/driller)
-* [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
-* [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/sslab-gatech/qsym)
-* [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
-* [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
-* [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
-* [Send Hardest Problems My Way: Probabilistic Path Prioritization for Hybrid Fuzzing](#send-hardest-problems-my-way-probabilistic-path-prioritization-for-hybrid-fuzzing)
-* [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
 * [Evaluating Fuzz Testing](#evaluating-fuzz-testing)
+
+## Symbolic Execution
+
+* [Driller: Augmenting Fuzzing Through Selective Symbolic Execution](#driller-augmenting-fuzzing-through-selective-symbolic-execution) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/shellphish/driller)
+* [Qsym : A Practical Concolic Execution Engine Tailored for Hybrid Fuzzing](#qsym-a-practical-concolic-execution-engine-tailored-for-hybrid-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/sslab-gatech/qsym)
+* [Send Hardest Problems My Way: Probabilistic Path Prioritization for Hybrid Fuzzing](#send-hardest-problems-my-way-probabilistic-path-prioritization-for-hybrid-fuzzing)
+
+## Mutation / Scheduling
+
+* [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
+* [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
+
+## Hook / Patch
+
+* [T-Fuzz: fuzzing by program transformation](#t-fuzz-fuzzing-by-program-transformation) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/HexHive/T-Fuzz)
+
+## Feedback
+
+* [CollAFL: Path Sensitive Fuzzing](#collafl-path-sensitive-fuzzing)
+* [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
+
+## Collaboration
+
+* [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
+* [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
+* [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
 
 ---
 
@@ -633,3 +653,49 @@
 * 根据已知错误的发现数量来进行评估，可以使用边或块覆盖率进行辅助；
 * 考虑各种种子集，包括空种子；
 * 至少测试 24 小时；
+
+## T-Fuzz: fuzzing by program transformation
+
+*2018 IEEE Symposium on Security and Privacy (SP)*
+
+这篇文章主要还是聚焦于提高模糊测试的探索深度。作者认为模糊测试对于一些深层的漏洞无法探索的主要原因是因为无法绕过一些复杂的 `sanity check`。与之前聚焦于对输入进行突变的策略不同，作者认为在模糊测试过程中，除了单纯地对输入进行突变，还可以考虑对程序本身进行变换，从而进一步辅助对漏洞的发现。
+
+作者聚焦于那些组织模糊测试过程往更深的层次探索的 `sanity check`，基本的思想是在模糊测试过程中，如果当前模糊测试过程卡住了，则采用动态检测的方式检测出相应的 `sanity check` 的部分，并通过 Patch 的方式将其禁用，从而可以更快速地探索到更深的部分。但是这种禁用可能会禁用一些程序中的安全检查，从而引入了更多本来不存在的漏洞，造成 **False Positive**。为了防止误报，作者在发现潜在的漏洞之后，引入了符号执行对其进行进一步地验证，从而提高准确率。
+
+作者将 `sanity check` 分成两类，第一种称为 **Non-Critical Check (NCC)**，这种检查是比较简单的检查，类似的有对于 `magic` 值的检查等；另一种称为 **Critical Check (CC)**，这种检查会与实际的内容结合起来，类似与网络报文的长度检查，**CRC** 校验等。
+
+对于 **NCC** 检查来说，直接在程序中删除这种检查不会对误报率产生影响，因为这种检查通常不会用来防止漏洞的产生。而移除 **CC** 可能会产生一些在变换后的程序能崩溃而无法在原始程序中复现的输入，这种情况就需要借助符号执行来对其进行进一步地过滤筛选，从而发现真正的漏洞。
+
+作者最终基于对原始程序进行变换的思想，在 **AFL** 的基础上实现了 **T-Fuzz**，检测定位出原始程序的 **NCC** 检查，然后进行模糊测试。**T-Fuzz** 的基本流程如下：
+
+1. 使用正常的模糊测试过程，对目标程序进行模糊测试，并记录产生的 **Crash** 等；
+2. 当模糊测试过程卡住时，调用程序变换模块，首先追踪定位到程序的 `sanity check` 部分，然后将这些检查进行移除；
+3. 对于产生的 **Crash**，使用符号执行技术对其进行进一步分析；
+
+<img src="./img/tfuzz/overview.png" width="600px">
+
+**T-Fuzz** 会维护一个程序队列，队列中存放着每一个被改变的程序（包括原始程序）。当每一轮模糊测试过程卡住的时候，**T-Fuzz** 会根据之前生成的测试用例检测到 `sanity check`，将这些 `sanity check` 禁用掉之后放入到程序队列中，然后从程序队列中获取一个新的程序进行下一轮模糊测试过程。具体算法如下图：
+
+<img src="./img/tfuzz/algo_1.png" width="600px">
+
+对于 **NCC** 的检测，作者并没有采用精确的静态分析以及数据流依赖分析等方法，因为这些方法会造成很大的性能开销。作者使用简单的不精确的方法对这些程序进行分析。首先，作者通过静态分析提取程序的控制流图。然后，对于每一个当前模糊测试生成的测试用例，作者收集其产生的执行路径，包括所执行到的节点以及所覆盖到的边。覆盖到的边使用 **CE** 集合表示，节点使用 **CN** 集合来表示，如下图算法所示：
+
+<img src="./img/tfuzz/algo_3.png" width="600px">
+
+在得到已经覆盖到的边之后，作者再从完整的控制流图中筛选，提取出那些没有被访问过，但是来源节点被访问过了的边，将这些边看作是 **NCC**，如下图算法所示：
+
+<img src="./img/tfuzz/algo_2.png" width="600px">
+
+此外，在讲这些 **NCC** 进行删除之前，作者还对这些进行了筛选。首先过滤掉那些位于其他库（不是 Fuzzing 目标）的边，然后作者还认为有一些 **NCC** 之后的路径可能是比较短的错误处理路径，会导致程序很快终止运行，因此根据 **NCC** 后面的路径长度，对这些 **NCC** 也进行一次过滤。
+
+在程序转换阶段，作者的方法是将每个 **NCC** 对应的跳转条件取反（*直接取反会不会造成很大的误报呢？*），作者表示这样的方法可以确保原始程序与变换后的程序的逻辑保持基本不变，这样可以后序简化 Crash 分析的过程。具体算法如下图所示：
+
+<img src="./img/tfuzz/algo_4.png" width="600px">
+
+最后，在 Fuzzing 阶段触发了 Crash 之后，会启用 Crash 分析器来验证得到的每个漏洞。Crash 分析采用预约束路径追随的方式，来求解对应的 Crash 路径在原始程序上是否可以满足。首先，对于在变换后的程序上触发漏洞的输入 **I**，将其转换为预约束，添加到变换程序的约束中（**CT**），然后追踪变换程序的执行。如果执行到被取反的条件跳转指令，则将该跳转指令的原始约束提取出来添加到原始程序的约束中（**CO**）。当触发 Crash，Crash 相应的约束也被添加到原始约束中。最后对 **CO** 中的约束进行求解，看这些约束是否能被满足，如果可以被满足，则证明该漏洞在原始程序中也存在。具体的算法过程如下图所示：
+
+<img src="./img/tfuzz/algo_5.png" width="600px">
+
+作者实现了 **T-Fuzz** 并将其与 **AFL** 和 **Driller** 进行对比。在大多数情况下，**T-Fuzz** 都可以取得比较好的效果。但是在有些情况下，**T-Fuzz** 也会产生部分的漏报，主要原因是在模糊测试过程中，将条件跳转的条件取反之后，会使得执行路径在到达漏洞之前崩溃，这样就无法到达真正的漏洞路径。此外，如果条件分支太多，**T-Fuzz** 会遭遇程序变换爆炸的问题，即有太多程序的变型版本需要进行模糊测试。而在有些情况下，因为在模糊测试阶段产生了太多的漏洞，导致需要使用符号执行进行验证的漏洞较多，从而导致效率较低。**T-Fuzz** 与 **AFL** 在真实程序下的模糊测试结果对比如下图所示：
+
+<img src="./img/tfuzz/eval_real.png" width="400px">
