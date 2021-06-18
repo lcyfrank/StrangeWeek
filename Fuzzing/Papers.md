@@ -17,6 +17,11 @@
 
 * [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
 * [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
+* [FairFuzz: A Targeted Mutation Strategy for Increasing Greybox Fuzz Testing Coverage](#fairfuzz-a-targeted-mutation-strategy-for-increasing-greybox-fuzz-testing-coverage)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/carolemieux/afl-rb)
+
+## Binary-Only
+
+* [STOCHFUZZ: Sound and Cost-effective Fuzzing of Stripped Binaries by Incremental and Stochastic Rewriting](#stochfuzz-sound-and-cost-effective-fuzzing-of-stripped-binaries-by-incremental-and-stochastic-rewriting)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/ZhangZhuoSJTU/StochFuzz)
 
 ## Hook / Patch
 
@@ -699,3 +704,93 @@
 作者实现了 **T-Fuzz** 并将其与 **AFL** 和 **Driller** 进行对比。在大多数情况下，**T-Fuzz** 都可以取得比较好的效果。但是在有些情况下，**T-Fuzz** 也会产生部分的漏报，主要原因是在模糊测试过程中，将条件跳转的条件取反之后，会使得执行路径在到达漏洞之前崩溃，这样就无法到达真正的漏洞路径。此外，如果条件分支太多，**T-Fuzz** 会遭遇程序变换爆炸的问题，即有太多程序的变型版本需要进行模糊测试。而在有些情况下，因为在模糊测试阶段产生了太多的漏洞，导致需要使用符号执行进行验证的漏洞较多，从而导致效率较低。**T-Fuzz** 与 **AFL** 在真实程序下的模糊测试结果对比如下图所示：
 
 <img src="./img/tfuzz/eval_real.png" width="400px">
+
+## STOCHFUZZ: Sound and Cost-effective Fuzzing of Stripped Binaries by Incremental and Stochastic Rewriting
+
+*2021 IEEE Symposium on Security and Privacy (SP)*
+
+这篇文章主要聚焦于针对没有源码与符号表的二进制程序的模糊测试的工作。在没有源码的二进制模糊测试中，为了可以获得覆盖率信息的反馈，目前有几种比较常见的技术：1. 基于硬件的支持，比如 **Intel PT**，这种方式的主要问题是只能追踪控制流的转移信息；2. 基于动态重写的技术，例如借助 **QEMU** 等，在基本块执行的时候即时对基本块进行重写，以收集执行信息，这种方法的主要问题是特别慢；3. 静态重写技术，即在模糊测试过程之前对二进制进行一次性重写，但是在缺乏符号表的情况下，这种重写技术的准确率会很低；
+
+作者观察到模糊测试过程由于其大量的可重复性，因此具有**大量的试错机会**。因此，针对那些没有符号表的二进制程序，作者提出了一种增量随机重写技术，通过不断重写二进制来提高针对无符号表程序的重写准确性。
+
+作者实现的方法主要是针对静态重写，目前的静态重写技术主要存在以下局限性。如果该静态重写技术依赖于线性反汇编技术，因为静态重写的过程中会引入一些新的指令，这些指令会导致原来指令之间的相对偏移不一样，所以会导致执行流跳转的过程中出现一些错误。而如果该重写技术依赖的是递归反汇编技术，在反汇编的过程中则无法正确地识别出间接跳转，因此仍然无法正确处理。目前还有一些方法是将这种偏移 / 地址的值进行符号化，在完成指令重写之后再将这些符号化的值转变回具体的值，但是如何在重写过程中判断指令操作所产生的值是需要被符号化的地址或偏移也是一个存在的困难。静态重写的例子如下图所示：
+
+<img src="./img/stochfuzz/limitation.png" width="600px">
+
+作者观察到，灰盒模糊测试也可以在测试过程中对目标程序进行变化，因此，对程序的静态重写过程也可以随着测试的推进不断提高和加强，从而提高重写的准确率。作者首先将静态二进制的原始代码节区域使用 `hlt` 指令填充，该指令会造成 `segfault` 异常。在执行过程中，如果发现了异常，则认为当前发现了一个代码区域，该区域不应该被当作数据对待，应该对该区域进行重写，插入覆盖率监视的指令。具体地，作者将整个重写的代码放置到一个新的内存区域（*shadow space*），然后将控制流重定向到该区域，同时对与 **PC** 相关的数据依赖值也进行处理，如下图 **Case A** 的过程①所示：
+
+<img src="./img/stochfuzz/example.png" width="900px">
+
+之后，程序会在 **shadow space** 中执行，在下一次遇到崩溃时，如过程②所示，在崩溃点继续重复上述操作，从而实现逐步地增量重写，最终对程序的所有代码段进行准确重写，如上图的④所示。这种方式的一个难点是如果误将夹杂在代码段中的数据也重写之后，可能会导致出现执行错误，如上图的①，如果将第 `25` 行的数据用 `hlt` 重写了，则会导致后面的执行不正确。但是由于模糊测试是一个不断重复的过程，可以有大量的试错机会，因此可以多尝试几次对代码区域和数据区域的划分，随着收集到的程序样本的数量的增加，对于这两个区域的划分就会变的更加准确。基于这个想法，作者首先通过静态分析推导出每个地址作为数据或者指令的概率，例如上图的 **Case B**，每个地址都有一个其作为代码的概率。基于这个概率，随机对目标程序使用 `hlt` 指令重写，如①的左边所示。然后在执行的时候，出现由 `hlt` 指令引起的错误之后，对该段区域的字节进行反汇编，并将这些区域的概率设置为一定为代码（将概率设置为 0），然后剩余地址的概率会被更新。然后，执行这一段区域的指令，此时由于第 `25` 的地址处被重写了，因此会在 `123` 地址处产生崩溃。这时将那些不确定的地址重写的部分恢复，再执行一次，如果未发生崩溃，则可以认为之前触发的错误由误重写引入，然后使用 *delta-debug* 对哪个地址为误重写进行探测，如上图 **Case B** 中的②-⑤所示。
+
+基于上述增量重写的思想，作者实现了 **STOCHFUZZ** 系统，其架构如下图所示：
+
+<img src="./img/stochfuzz/architecture.png" width="600px">
+
+主要由 5 个部分构成：概率分析、静态重写、程序调度、执行引擎、崩溃分析。概率分析用来分析每个地址属于数据区域的概率；静态重写来对目标程序进行二进制重写；程序调度则选择一个重写版本的程序给执行引擎执行；执行引擎基于 **AFL**，对目标程序和测试用例执行，同时监视崩溃；崩溃分析则分析崩溃的类型，来决定是否触发重写；
+
+概率分析部分首先对每个字节的地址进行反汇编，如下图左边所示：
+
+<img src="./img/stochfuzz/pro_analysis.png" width="600px">
+
+之后会根据已经确定的指令（比如地址 `0`）的大小以及语义，使用一些推导规则来推断出后面地址的类型，推导规则如下表所示：
+
+<img src="./img/stochfuzz/def_rule.png" width="500px">
+
+在得到一系列确定的地址之后，需要对当前仍然不确定的地址进行推导。作者定义了一系列的谓词及谓词表达式来描述目标地址的关系：
+
+<img src="./img/stochfuzz/pro_rule.png" width="500px">
+
+*具体的概率计算过程没太看明白，找时间继续好好看一下。*
+
+对于重写部分，通过之前介绍的引入 `hlt` 指令的形式来进行增量重写，此时需要考虑与 **PC** 相关的地址的重新计算（通过计算 `shadow space` 和原地址的偏差来完成），此外，作者提到部分程序会根据返回地址的值计算得到一些数据，因此作者对 `call` 指令的处理进行了重写，将原始返回地址压入堆栈，并使用 `jmp` 指令来跳转。同时，重写部分会根据之前推导出来的概率对地址的指令进行重写。
+
+作者在部分程序中进行实验，与主流的基于二进制插桩的模糊测试工具进行对比，其中成功插桩的结果表如下所示：
+
+<img src="./img/stochfuzz/soundness.png" width="500px">
+
+同时，作者在 **Google Fuzz Test Suite** 上测试了效率，如下表所示，在部分程序中可以与使用编译插桩的效率相当，甚至比编译插桩的效率还要高：
+
+<img src="./img/stochfuzz/time_comsume.png" width="500px">
+
+## FairFuzz: A Targeted Mutation Strategy for Increasing Greybox Fuzz Testing Coverage
+
+*Proceedings of the 33rd ACM/IEEE International Conference on Automated Software Engineering. 2018.*
+
+这篇文章的作者提出了稀有分支的概念，通过在模糊测试过程中根据目标程序的分支运行情况推导出程序中较为稀有的分支，同时使用提出的突变掩码（*mutation mask*）来确保生成的新的测试用例能继续命中该稀有分支，从而增加在稀有分支中探索的概率，加大目标程序覆盖率的探索，提高发现漏洞的概率。作者发现 AFL 在模糊测试过程中通常很难在一些比较关键的程序区域中进行探索，这就导致目标程序中关键的漏洞无法被探索。基于此，作者提出的 **FairFuzz** 将模糊测试的探索过程局限在稀有分支处，从而增加关键区域的探索能力。
+
+具体地，作者基于比较重要的代码区域通常较少地被 AFL 命中这一观察来定位需要在模糊测试过程中重点探索的区域。之后，作者采用确定性突变的方式，通过对测试用例进行部分突变，来确定与该代码区域相关的输入部分，来保证相应的部分在后续模糊测试过程中不会被突变，提高了在重要区域探索的概率。因此，作者主要修改了 AFL 中的两个逻辑：1. 修改从队列中的调度种子的方式；2. 修改了针对这些种子的突变方式；
+
+接下来，作者定义了突变掩码的概念，突变掩码描述了对于输入 `x` 在位置 `i` 中进行突变之后是否还可以命中程序目标位置。因此对于位置 `k` 来说，是否可以对其进行突变可以使用下列公式来表示：
+
+<img src="./img/fairfuzz/can_mutate_f.png" width="400px">
+
+在确定性突变阶段，对于每一个突变以及每一个位置，如果可以满足上述公式，则对其进行突变；在 `havoc` 阶段，与原始的 **AFL** 一致，随机选择一个突变方式，同时在所有满足上述公式的字节位置中选择一个字节，进行突变。具体的算法如下图所示：
+
+<img src="./img/fairfuzz/algo_2.png" width="600px">
+
+之后，作者通过定义稀有分支的概念，在每一次模糊测试过程中记录分支命中的数量（因为需要首先建立分支数量，所以在第一次执行时采用的突变不使用掩码，先执行一轮），如果满足稀有分支的定义，则认为该分支是稀有的。稀有分支如下定义：
+
+<img src="./img/fairfuzz/rare_branch.png" width="500px">
+
+即使用 2 的指数对稀有分支的界限来定义，该指数通过当前最少的命中的分支的数量来决定。
+
+在确定了稀有分支之后，需要根据稀有分支计算掩码，计算掩码在确定性突变阶段（如上图算法 2 中所示）。具体的，对于每个字节开始的位置使用三种操作（复写 / 插入 / 删除），然后查看稀有分支是否仍能被命中，如果可以命中，则将该字节添加进掩码，表示该字节可以进行对应的操作，如下图所示：
+
+<img src="./img/fairfuzz/algo_3.png" width="600px">
+
+此外，作者还提到，基于上述的思想，可以在对目标测试用例进行缩减的过程中，将目标测试用例缩减地更短，因为在当前模糊测试过程中，只关心能命中目标稀有分支的测试用例。
+
+作者在 AFL 的基础上实现 FairFuzz，并与 AFL 和 AFLFast 进行对比，统计他们的分支覆盖率，结果如下图：
+
+<img src="./img/fairfuzz/branch_eval.png" width="900px">
+
+通过分析作者发现，对于 `c++filt` 来说，其中有较多的递归调用，而 FairFuzz 主要针对稀有分支来进行探索，且不会产生较长的输入，所以可能不会命中 `c++filt` 中的太多分支，因此造成了相对效果没有 AFLFast 好的结果。通过作者最后的分析，FairFuzz 这样的技术更适合于探索在输入中具有部分约束或者相应关键字的情况。
+
+最后，作者验证了突变掩码是否对保证目标分支的覆盖起到作用。作者采用 `shadow mode` 的方式，实现一个类似的 FairFuzz，但是不采用突变掩码对突变进行限制。然后统计目标分支命中的差异。
+
+<img src="./img/fairfuzz/mask_eval.png" width="600px">
+
+实验表明突变掩码可以确保目标测试能更多地命中目标分支，此外，如果需要对特定的分支加大命中率，可以更改目标掩码的位置来进行实现。
+
+此外，作者也提出了一些缺点，如果稀有分支没有被 AFL 命中过，那么作者提出的这种方式就无法将模糊测试的效率提高。
