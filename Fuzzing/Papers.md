@@ -18,6 +18,7 @@
 * [MOpt: Optimized Mutation Scheduling for Fuzzers](#mopt-optimized-mutation-scheduling-for-fuzzers) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/puppet-meteor/MOpt-AFL)
 * [Profuzzer: On-the-fly input type probing for better zero-day vulnerability discovery](#profuzzer-on-the-fly-input-type-probing-for-better-zero-day-vulnerability-discovery)
 * [FairFuzz: A Targeted Mutation Strategy for Increasing Greybox Fuzz Testing Coverage](#fairfuzz-a-targeted-mutation-strategy-for-increasing-greybox-fuzz-testing-coverage)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/carolemieux/afl-rb)
+* [GREYONE: Data Flow Sensitive Fuzzing](#greyone-data-flow-sensitive-fuzzing)
 
 ## Binary-Only
 
@@ -794,3 +795,81 @@
 实验表明突变掩码可以确保目标测试能更多地命中目标分支，此外，如果需要对特定的分支加大命中率，可以更改目标掩码的位置来进行实现。
 
 此外，作者也提出了一些缺点，如果稀有分支没有被 AFL 命中过，那么作者提出的这种方式就无法将模糊测试的效率提高。
+
+## GREYONE: Data Flow Sensitive Fuzzing
+
+*29th USENIX Security Symposium (USENIX Security 20). 2020.*
+
+作者提到，数据流分析在模糊测试中可以起到比较重要的作用，但是传统的污点分析存在速度慢和不准确的问题。作者提出了使用一种轻量的模糊测试驱动的污点推导方式来推测变量的污点，之后，基于推导出的污点关系，来进一步优化模糊测试过程。
+
+作者提出的第一个研究内容是如何实现一个有效的且轻量的污点分析方式从而更有效地为模糊测试指导。第二个研究内容是在获得了污点信息之后，如何有效地使用这些污点信息指导模糊测试的突变。第三个研究内容是如何根据数据特征有效地调整模糊测试的探索方向。
+
+对于有效且轻量的污点分析技术，作者结合了模糊测试的性质，使用的基本思想是如果对测试用例中的某个输入字节进行突变之后，程序中的一个变量的值改变了，则这个变量与这个输入字节存在污点关系。而如果某个分支 `br` 依赖于这个变量的值，则可以进一步推断出当前分支 `br` 可以与这个输入字节进行关联。具体的，作者将这个污点推导阶段与 AFL 中的确定性模糊测试阶段相结合，使用基本的突变规则（单位翻转、多位翻转以及数学运算），然后每次只对单个字节进行突变，此外，对于变量值的监视，作者在目标程序中插入对于特定变量追踪的代码。之后，假设某变量 `var` 在对测试用例 `S` 的第 `pos` 个字节进行突变后被改变了，则 `var` 依赖于测试用例 `S` 的第 `pos` 个字节，具体算法如下图所示：
+
+<img src="./img/greyone/fti.png" width="600px">
+
+与传统的污点分析相比，作者所实现的 **FTI** 更少地需要人们的干预（传统的污点分析需要人为定义污点传播规则），此外，**FTI** 的速度更快，并且有更高的准确率。下图是传统污点分析和 **FTI** 的一个对比：
+
+<img src="./img/greyone/fti_compare.png" width="600px">
+
+可以看到通过 **FTI** 推导出来的污点关系比传统污点分析要好很多。
+
+在获得污点关系之后，通过污点关系来决定对哪个字节的内容进行突变，以及如何进行突变。作者基于的基本想法是如果一个输入字节可以影响更多的未触碰到的分支，则这个输入字节应该优先考虑被突变，通过公式定义如下所示：
+
+<img src="./img/greyone/weight_byte.png" width="600px">
+
+在对输入字节进行优先级排序之后，作者进一步提到对未触碰到的分支也进行排序，基本思想是如果未触碰到的分支受到更高权重的输入字节的影响，则这个分支更应该被优先考虑。因此通过公式定义每个分支的权重如下：
+
+<img src="./img/greyone/weight_br.png" width="600px">
+
+有了上述两个公式之后，对于每个种子优先突变哪个字节就比较好确定了。具体地，首先在这个种子未触碰到的分支中选择一个权重最高的分支，然后在这个分支中受影响的输入字节中选择权重最高的字节进行突变。在找到需要突变的字节之后，需要确定突变的目标值。对于直接拷贝的值，作者将他们突变成确定的值（这个确定的值在 **FTI** 过程中得到）或者对他们做一些小扰动（例如 `+-1` 操作）。对于间接拷贝的值，则对那些输入字节进行随机突变。
+
+此外，由于 **FTI** 是通过特定的输入来对污点进行推导的，那么对于未触碰到的分支中的一些变量，无法有效推导出完整的污点关系，因此作者还选取了这些输入字节的一些字节进行随机突变，以加入足够多的扰动。
+
+之后，作者实现了基于一致性引导的模糊测试过程。假设某个分支 `br` 依赖于两个变量 `var1` 和 `var2`（例如语句 ` if (var1 < var2) ... `），则一致性定义如下：
+
+<img src="./img/greyone/conformance.png" width="500px">
+
+将这个一致性引申到基本块，对于每个基本块 `bb`，其一致性定义为所有未触碰过的分支的一致性的最大值，公式如下：
+
+<img src="./img/greyone/conformance_bb.png" width="500px">
+
+对于测试用例来说，其一致性就是所有基本块的一致性之和：
+
+<img src="./img/greyone/conformance_tc.png" width="300px">
+
+因此，对于具有高一致性的测试用例来说，它可能拥有更多的未触碰到的分支，或者拥有高一致性的未触碰过的分支。高一致性的测试用例会被优先调度，从而更快地发现更多的分支。在调度队列中，作者对调度队列进行进一步优化，不只考虑是否探索到新的路径。对于一些探索到相同路径的测试用例，比较他们之间的一致性以及未触碰到的分支的一致性，来对队列进行更新，如下图所示：
+
+<img src="./img/greyone/queue_updating.png" width="600px">
+
+最后，如果发现了一个比较高一致性的测试用例，即使现在正在对其他的测试用例进行突变，作者也直接将新发现的测试用例替换掉之前的测试用例，让新发现的测试用例优先被探索。
+
+在实验阶段，作者做了很多横向对比实验。首先选取了 13 个开源项目，在每个项目使用多个模糊测试工具进行比较运行 60 个小时之后得到的结果如下：
+
+<img src="./img/greyone/vuln_result.png" width="900px">
+
+可以看到 **GREYONE** 的效果相比其他模糊测试工具的效果有特别大的提升。
+
+同时，作者还对所产生的 Crash 数量和代码覆盖率的差异进行了比较，**GREYONE** 相比其他的工作均能取得很好的效果。
+
+针对 **LAVA-M** 数据集，作者对每个模糊测试工具运行 24 个小时，最终发现了比其他工具多特别多的漏洞：
+
+<img src="./img/greyone/lavam_result.png" width="900px">
+
+作者还提到，**GREYONE** 可以绕过很复杂的约束，为了验证绕过复杂约束的有效性，与 **Qsym** 进行了对比实验，因为 **Qsym** 使用了两个 **AFL** 实例和一个符号执行实例，因此实际上会使用 3 个进程，而作者部署 **GREYONE** 使用 2 个进程，最终实验结果如下：
+
+<img src="./img/greyone/compare_qsym.png" width="900px">
+
+可以看到实验结果 **GREYONE** 均比 **QSYM** 好很多。
+
+作者同时对 **FTI** 机制与传统的污点分析技术进行比较（**DFSan**），通过将 **GREYONE** 的污点分析模块进行替换，作者发现 **FTI** 的效果相较 **DFSan** 可以发现更多的未接触到的分支：
+
+<img src="./img/greyone/tainted.png" width="600px">
+
+此外，作者还对 **FTI** 所花的时间开销进行实验，与不进行 **FTI** 污点分析的情况下进行对比：
+
+<img src="./img/greyone/fti_speed.png" width="600px">
+
+可以看出额外增加的开销并不是很大。
+
+此外，作者还对其他一些模块的效果做了相当详细的实验，可以从原论文中查看。
