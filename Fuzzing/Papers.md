@@ -38,6 +38,7 @@
 * [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
 * [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
 * [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
+* [Designing New Operating Primitives to Improve Fuzzing Performance](designing-new-operating-primitives-to-improve-fuzzing-performance)
 
 ---
 
@@ -873,3 +874,51 @@
 可以看出额外增加的开销并不是很大。
 
 此外，作者还对其他一些模块的效果做了相当详细的实验，可以从原论文中查看。
+
+## Designing New Operating Primitives to Improve Fuzzing Performance
+
+*Proceedings of the 2017 ACM SIGSAC Conference on Computer and Communications Security*
+
+这篇文章主要聚焦于当模糊测试在某个计算机系统上大规模并行部署时，会出现由于模糊测试所采用的几个原语而产生的性能瓶颈问题。
+
+作者首先分析了当模糊测试在多个 CPU 核上同时运行的时候，出现的性能问题。对于第一个瓶颈，作者发现由于模糊测试的特殊性，需要经常调用 `fork` 函数以及来唤起新的进程执行新的目标程序，但是对于操作系统来说，`fork` 函数会带来很多性能上的开销，而且当在短时间内过多地调用 `fork` 函数创建太多的进程时，由于 **PID** 数量等的限制，可能会出现一些不必要的问题。
+
+对于第二个瓶颈，作者提到由于模糊测试过程不断地会与文件系统交互，向文件系统读写文件以读取测试用例和保存感兴趣的测试用例，而这些与文件系统进行交互的过程会导致很大范围对文件系统元数据进行修改，这个过程也会导致很大的开销。
+
+第三个瓶颈作者发现目前模糊测试的测试用例同步机制中，会遍历读取其他对等模糊测试实例中的测试用例，并对每一个测试用例执行，来验证这些测试用例对于当前实例来说是否会触发新的路径。而这个重新执行的过程很大程度上是没有必要的，且造成了很大的性能开销。
+
+作者对这些瓶颈做了一个实验，在核的数量增加的情况下，出现了模糊测试执行速度降低（因为同时调用 `fork` 的实例多了）以及同步所花时间占比增高的问题：
+
+<img src="./img/new_primitive/bottleneck.png" width="600px">
+
+基于上述对于瓶颈的发现，作者提出了三个新的操作原语：
+
+1. 增加 `snapshot` 系统调用来替换 `fork` 系统调用，将 `fork` 带来的额外开销减少；
+2. 通过内存实现一个新的双重文件系统服务（Dual File System Service）；
+3. 实现内存内共享的测试用例日志记录；
+
+具体的，对于 `snapshot` 系统调用，提供了两个命令：**BEG_SNAPSHOT** 和 **END_SNAPSHOT**。在开始模糊测试过程时，目标程序被启动后不直接执行（与 **AFL** 类似，通过插桩实现）。之后，当收到开始进行测试的指令之后，使用 **BEG_SNAPSHOT** 命令调用 `snapshot` 函数，此时会将当前进程的执行上下文保存（通过 `sigsetjmp` 完成），同时还会对进程各个内存段的起始地址和结束地址进行保存，以及对 `brk` 寄存器的值和文件描述符进行保存。此外，还会对当前可写的内存页做处理，为了维护这些可写内存页的内存状态，作者使用 **CoW** 的思想，将所有内存页设置为不可写，当程序对内存页写入内容时，会调用页错误，通过处理页错误的方式对内存的修改进行记录。**BEG_SNAPSHOT** 还提供注册一个 `callback`，当目标程序结束时，会使用 `callback` 将追踪到的路径信息返回给模糊测试器，或者再进行一些其他的操作，最后以 **END_SNAPSHOT** 调用 `snapshot` 函数，恢复程序执行上下文。通过上述实现，可以在每次模糊测试的时候不需要使用 `fork` 函数创建新的进程，减少了 `fork` 函数所花费的开销。
+
+对于双重文件系统，作者提供了两个级别层级的文件系统，第一层是内存文件系统，第二层是硬盘级别的文件系统。对于每个模糊测试实例，创建一个单独的内存文件系统作为私有的工作目录，这样模糊测试过程中对测试用例的访问不需要在硬盘文件系统中过多地访问文件。此外，会间歇地检查内存文件系统对内存的使用情况，如果超过某个阈值，则将内存文件系统中的一些比较老的文件移到硬盘文件系统中，这在某种意义上有另一个合理的地方，即比较老的测试用例很难再产生新的路径。
+
+对于内存内共享的测试用例日志记录，作者将模糊测试节点分为主从关系，对于主节点，可以创建测试用例日志。其他节点作为从节点，可以访问目标的测试用例日志。测试用例日志包含文件名、文件大小以及追踪路径（Bitmap），如下图所示：
+
+<img src="./img/new_primitive/testcase_log.png" width="600px">
+
+在实现这三个新的原语之后，作者在 **AFL** 中集成了全部 `3` 个新的原语，在 **LibFuzzer** 中集成了后面 `2` 个新的原语（在原文中有对三个原语集成的分析）。之后对效率的提升进行实验，其中 AFL 实验结果如下图所示：
+
+<img src="./img/new_primitive/afl_result.png" width="900px">
+
+最后，作者还对三个原语的有效性分别进行了实验，其中针对同步阶段的原语的实验结果如下：
+
+<img src="./img/new_primitive/sync_result.png" width="600px">
+
+可以看到在使用新的同步原语的情况下，执行速度比旧的模糊测试高，且花费的同步占比时间较低。
+
+针对 `snapshot` 的实验结果如下所示：
+
+<img src="./img/new_primitive/snapshot_result.png" width="600px">
+
+最后对文件系统的速率与不同的介质进行了实验，结果如下：
+
+<img src="./img/new_primitive/fs_result.png" width="600px">
