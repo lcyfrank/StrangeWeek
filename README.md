@@ -1,5 +1,7 @@
 # Strange Week
 
+<img src="./img/interesting.jpg" width="300px">
+
 *I'm a new comer in the filed of Cyberspace Security, and I wanna be a contributor to the SECURITY. The road is so long, but I believe...*
 
 I create this Repository to **RECORD** my *learning progress*.
