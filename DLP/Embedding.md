@@ -3,7 +3,13 @@
 类似于自然语言处理，由于程序表示形式为文本的源代码或者汇编指令，因此为了更好地使用神经网络对程序进行处理，通常需要对程序进行预处理，将程序的源代码或者汇编指令嵌入到数字空间中，形成向量之后，再进一步进行后续的工作。因此在使用神经网络对程序进行分析、处理之前，需要对嵌入的思想和方式进行大致了解。
 
 * [Distributed Representations of Sentences and Documents](#distributed-representations-of-sentences-and-documents)：借助 **Word2vector** 的思想对自然语言文本的段落生成向量表示
-* [node2vec: Scalable Feature Learning for Networks](#node2vec-scalable-feature-learning-for-networks)：优化随机游走策略，对图嵌入方式进行优化
+
+## Graph Related
+
+* [DeepWalk: online learning of social representations](#deepwalk-online-learning-of-social-representations)：采用随机游走策略产生节点嵌入
+* [node2vec: Scalable Feature Learning for Networks](#node2vec-scalable-feature-learning-for-networks)：优化随机游走策略，对图节点嵌入方式进行优化
+* [Structural Deep Network Embedding](#structural-deep-network-embedding)
+* [graph2vec: Learning Distributed Representations of Graphs](#graph2vec-learning-distributed-representations-of-graphs)
 
 ---
 
@@ -45,6 +51,12 @@
 Paragraph Vector 的好处是可以在没有 `label` 的数据中表现良好，由于训练过程中具有语义信息，因此最终得到的段落向量拥有较好的语义特征。
 
 最后作者使用几个数据集在情感分析和信息提取层面上，使用 Paragraph Vector 的方法提取出段落向量进行实验，均得到较好的结果。
+
+## DeepWalk: online learning of social representations
+
+*Proceedings of the 20th ACM SIGKDD international conference on Knowledge discovery and data mining. 2014.*
+
+**To-Do**
 
 ## node2vec: Scalable Feature Learning for Networks
 
@@ -110,3 +122,45 @@ Paragraph Vector 的好处是可以在没有 `label` 的数据中表现良好，
 <img src="./img/node2vec/edge_embedding.png" width="600px">
 
 最后，作者使用 **node2vec** 与其他图嵌入算法进行对比，分别就节点相似性、节点多标签分类、边预测等下游任务进行比对。此外，还进行了参数敏感性和可扩展性等的实验。
+
+## Structural Deep Network Embedding
+
+*Proceedings of the 22nd ACM SIGKDD international conference on Knowledge discovery and data mining. 2016.*
+
+**To-Do**
+
+## graph2vec: Learning Distributed Representations of Graphs
+
+作者提到，之前对整个图进行嵌入的方法主要有采用核的方式（Graph Kernel），但是这种方式通常需要手动提取图中的一些特征，因此存在泛化性差的缺点。目前还有一些方法可以学习到子图的表示形式（例如节点、路径等），但是这些表示形式无法用来表示整个图。此外，还有一些方法只用于特定的任务，例如分类任务，这些方法需要大量的标签数据，来进行有监督学习。基于这些缺陷，作者提出基于神经网络的嵌入方式：**graph2vec**，这种方式通过无监督学习得到的嵌入可以与下游任务无关，因此得到的嵌入可以用作很多不同的下游任务。作者将整个图看作一个文档，将每一个节点围绕的子图看作单词，引入 **Doc2vec** 的思想，来对整个图实现嵌入，这种方式有以下几个好处：
+
+1. 无监督表示学习；
+2. 与下游任务无关；
+3. 从大语料库中学习，无需手动提取的特征；
+4. 提取结构相似性特征；
+
+由于 **graph2vec** 主要基于 **Skip-Gram** 模型来实现，因此作者大致介绍了一下 **Skip-Gram** 的基本任务，主要是选定一个上下文窗口，在上下文窗口内部的词，做到最大化下面这个目标函数：
+
+<img src="./img/graph2vec/objective.png" width="500px">
+
+将这个公式展开之后可以得到如下公式：
+
+<img src="./img/graph2vec/objective_expand.png" width="500px">
+
+如果直接使用统计的方法求解上述公式，则当单词数量很多的时候，会导致计算速度很慢。为了更有效地计算，通常会使用负采样的方法，随机选取不在窗口上下文中的单词来进行单词的训练，从而减少每次计算的时间。
+
+此外，作者简单介绍了一下 **Doc2vec**，其目标函数如下，通过得到每个文档的嵌入以及从每个文档中抽样出词并求出词的嵌入进行计算：
+
+<img src="./img/graph2vec/doc2vec_obj.png" width="400px">
+
+**graph2vec** 则引入了 **Doc2vec** 的思想，将整个图看作一个文档，将子图看作文档中的单词。
+
+作者提到，有根子图（rooted subgraphs）更适合于学习图嵌入，主要有一下几个原因：
+
+1. 更好的结构特征：子图可以比较好地保留途中的顺序结构信息；
+2. 可以更好地捕获图中的非线性信息；
+
+基于此，**graph2vec** 算法可以分为两个主要的部分，首先是生成根子图，然后学习得到给定图的嵌入；算法如下图所示：
+
+<img src="./img/graph2vec/algo_1.png" width="600px">
+
+算法大致的流程是首先需要随机初始化图的嵌入（第二行），然后对于每一个节点，提取出根子图（第八行），并在多次迭代中学习图的嵌入（第三行到第十行）。
