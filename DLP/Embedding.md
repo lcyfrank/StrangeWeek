@@ -164,3 +164,21 @@ Paragraph Vector 的好处是可以在没有 `label` 的数据中表现良好，
 <img src="./img/graph2vec/algo_1.png" width="600px">
 
 算法大致的流程是首先需要随机初始化图的嵌入（第二行），然后对于每一个节点，提取出根子图（第八行），并在多次迭代中学习图的嵌入（第三行到第十行）。
+
+具体地，对于子图的提取，作者参考 *WL Kernel* 的方法，使用一种递归的方式，给定节点和对应的度数，返回节点特征，具体算法如下图所示：
+
+<img src="./img/graph2vec/algo_2.png" width="600px">
+
+在训练过程中，采用副采样的方法来提高计算效率。作者采样一系列的子图，这些子图在当前整个图中（整个图作为上下文）没有出现过。
+
+作者在图的分类问题和聚类问题上验证了 **graph2vec** 的有效性。对于在标准分类数据集下的准确性如下图所示：
+
+<img src="./img/graph2vec/classification_exp1.png" width="900px">
+
+此外，作者使用 Android 恶意程序数据集，通过给定 Android 应用程序的 API 依赖图（API Dependency Graphs），来验证 **graph2vec** 的有效性和准确性，结果如下：
+
+<img src="./img/graph2vec/accuracy_2.png" width="600px">
+
+可以看到 **graph2vec** 的效果都比较好。同时，作者对恶意软件的聚类效果进行了评估，结果如下：
+
+<img src="./img/graph2vec/accuracy_3.png" width="600px">
