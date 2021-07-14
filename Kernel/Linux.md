@@ -5,6 +5,7 @@
 ### 从编译内核开始
 
 * <https://blog.k3170makan.com/2020/11/linux-kernel-exploitation-0x0-debugging.html>
+* <https://www.cnblogs.com/hac425/p/9416886.html>
 
 环境配置：
 
@@ -50,7 +51,41 @@ $ make -jn
 
 对内核进行编译。
 
-接下来需要构建启动镜像文件。这里使用 `syzkaller` 提供的工具进行构建，因此先下载 `syzkaller`：
+接下来需要构建启动镜像文件，可以有两种方式，一种是使用 Busybox 提供的轻量文件系统：
+
+在 https://busybox.net/downloads/ 中下载最新的 Busybox，解压之后进入 Busybox 目录，执行：
+
+```sh
+$ make menuconfig
+$ make install
+```
+
+在进行配置时选中 Busybox Settings -> Build Options -> Build Busybox as a static binary，同时取消选中 Linux System Utilities -> Support mounting NFS file system 和 Networking Utilities -> inetd
+
+之后进入 _install 目录，可以看到编译好的 Busybox 文件。之后执行一些初始化：
+
+```sh
+$ mkdir proc sys dev etc etc/init.d
+$ vim etc/init.d/rcS
+$ chmod +x etc/init.d/rcS
+```
+
+其中 rcS 是系统启动时的初始化脚本，内容如下：
+
+```sh
+#!/bin/sh
+
+/bin/busybox --install -s
+stty raw -echo
+
+mkdir -p /proc && mount -t proc none /proc
+mkdir -p /dev  && mount -t devtmpfs devtmpfs /dev
+mkdir -p /tmp  && mount -t tmpfs tmpfs /tmp
+```
+
+之后参考下面对文件系统进行打包。
+
+另一种借助 syzkaller 提供的工具，使用 `syzkaller` 提供的工具进行构建，因此先下载 `syzkaller`：
 
 ```sh
 $ mkdir image
@@ -127,6 +162,11 @@ $ find . | cpio -o -H newc | gzip > ../rootfs.cpio
 
 Linux 内核内存分配主要使用伙伴系统（**Buddy**）以及 **Slab 分配器**共同实现（感觉类似用户态的 `mmap` 和 `malloc` 的关系）。对于 Buddy 来说，其基本思想是大块内存按照一定策略不断拆分（在到达最小块之前），而 Linux 中的 Buddy 的最小块就是「页」，页是内存分配的最基本的单位。Buddy 中的块的大小由 `order`（阶）指定。如果当前系统「页」的大小为 4K，那么 order 为 1 就是 `2^1 * 4K`，order 为 2 中的块就是 `2^2 * 4K`…
 
+```c
+struct page *alloc_pages(gfp_t gfp_mask, unsigned int order);  // order 为指定哪一阶，order 为多少则分配 4K * 2^n 大小的内存
+void free_pages(unsigned long addr, unsigned int order);
+```
+
 在 Buddy 中分配内存时，根据指定大小寻找对应的 order 的页，如果没有该页，则将高 order 的页进行分裂；释放时，如果这个块（页）是之前分裂得来的，则与其伙伴（即之前拆分的另一个块）重新合并。
 
 基本上 Buddy 的思想就是上面这样，可以通过查看 `/proc/buddyinfo` 文件或者 `/proc/pagetypeinfo` 文件来查看系统 Buddy 块的信息，其中 Node 表示每一组 CPU 和本地内存；每一个 Node 下面可能会有多个内存设备（Zone），每一个 Zone 后面跟着的数字表示当前系统中连续 2^n 个页面的内存的数量（n 表示后面的第 n 个数字），如下图所示：
@@ -148,6 +188,20 @@ Linux 系统在启动之后，会有多个 `kmem_cache`，分别负责不同大�
 * `kmem_cache_free`：释放该 Object
 * `kmalloc`：指定大小，申请内存，系统会在合适大小的 `kmem_cache` 中申请，如果太大了的话，还是直接调用 Buddy 进行申请
 * `kfree`：对应 `kmalloc` 的释放
+
+对象的分配和释放过程会涉及 4 个不同的指针，分别是：
+* p1：对象虚拟地址
+* p2：对象地址所对应的 page
+* p3：对象所属的 slab
+* p4：对象所属的 kmem_cache
+
+p1 可以通过 virt_to_page 得到 p2；p2 可以通过 page->slab_cache 得到 p4；分配过程如下图：
+
+<img width="600px" src="./img/slab_process">
+
+### 内核堆溢出
+
+与用户态类似，内核堆溢出最直接的后果就是修改了当前 Object 后面的 Object，如果那个 Object 中包含函数指针，则可能触发控制流劫持。
 
 # 虚拟文件系统
 
@@ -282,7 +336,7 @@ $ cat /proc/modules
 cat /sys/module/[drive_name]/sections/[name]
 ```
 
-在调试过程中，通过查看 startup（startup_64） 的地址可以得到内核基址。
+在调试过程中，通过查看 startup（startup_64） 的地址可以得到内核基址。（好像是通过 _stext 地址来确定内核加载基地址）
 
 ### 其他方式
 
@@ -343,6 +397,9 @@ void escalate_privs() {
 
 ### SMEP 及其绕过
 
+> QEMU 开启：通过在 -cpu 选项中加入 +smep 实现
+> QEMU 关闭：通过在 -append 选项中加入 nosmep 实现
+
 特权级执行保护（**SMEP**）是用来防止内核态内存直接访问用户态内存的代码进行执行，即内核态无法执行用户态代码。SMEP 是通过 CPU 来决定开启与关闭的，通常由 **CR4** 寄存器的第 **20** 位来控制，如果该位寄存器为 1，则表示开启 SMEP 保护。因此，要关闭 SMEP 保护可以直接使用 MOV 指令对 CR4 寄存器的值进行改写即可。可以使用 `cat /proc/cpuinfo | grep smep` 查看是否开启 SMEP。
 
 那么如何绕过 SMEP 呢？最直白的方法是使用 **ROP** 关闭 SMEP。对于内核文件来说，有两种类型的格式：`vmlinux` 和 `vmlinuz`（`bzImage`/`zImage`，在发行版中位于 `/boot/vmlinuz-xxxxxx` 中）。`vmlinux` 是原始的二进制文件，可以从中提取 ROP 的 `gadgets`，而 `vmlinuz` 是经过压缩的格式。可以使用内核源码中提供的 `extract-vmlinux` 脚本从 `vmlinuz` 中提取出原始的 `vmlinux`。提取出 `vmlinux` 之后，就可以使用 **[ROPgadget](https://github.com/JonathanSalwan/ROPgadget)** 等工具发现 ROP 的 `gadget`，进一步构造 ROP 链。
@@ -396,3 +453,76 @@ void escape() {
 （注意，上述使用 `Intel` 语法的内联汇编，在使用 `gcc` 编译时需要添加 `-masm=intel` 选项）
 
 此外，在执行 `iretq` 之前，在 **64-bit** 系统上还需要执行 `swapgs` 对 GS 寄存器的值进行恢复（在进入内核态的时候会将用户态的 GS 保存到某个地方）。
+
+### SMAP 及其绕过
+
+> QEMU 开启：通过在 -cpu 选项中加入 +smap 实现
+> QEMU 关闭：通过在 -append 选项中加入 nosmap 实现
+
+SMAP 可以防止内核态对用户态内存空间的数据进行访问，通过 CR4 寄存器的第 21 位进行控制。在开启 SMAP 的情况下，如果对应的 Exp 通过 Stack Pivot 将当前 ROP 链放置到了用户态空间，则 Exp 在这种情况下就无法使用。
+
+### KASLR 及其绕过
+
+> QEMU 开启：通过在 -append 选项中加入 kaslr
+> QEMU 关闭：通过在 -append 选项中加入 nokaslr
+
+最直观地对 KASLR 的绕过是通过泄漏获取内核镜像的加载基地址，然后通过固定偏移求每个函数的实际地址。但是 Linux 内核引入了 **Function Granular KASLR** 的概念，在加载内核镜像的时候以函数粒度来对代码进行重排列，也就是说函数的偏移也会被改变。
+
+使用 **Function Granular KASLR** 时，从 `_text` 基地址到函数 `__x86_retpoline_r15` 之间的地址不会被随机化【可以用来找 gadget】。而且通常用来绕过 KPTI 的函数 `swapgs_restore_regs_and_return_to_usermode()` 的地址也不会被随机化，内核符号表 ksymtab 的基地址也不会被随机化【可以用来获取函数的地址】。
+
+对于函数地址的泄漏，ksymtab 的地址偏移不会被随机更改，因此可以通过首先读取 `/proc/kallsyms` 读取相应的地址 `ksymtab___...`，这个地址对应的内存处存放的是对应函数的地址，因此需要使用地址读的方式来泄漏函数地址。
+
+### KPTI 及其绕过
+
+> QEMU 开启：通过在 -append 选项中加入 kpti=1
+> QEMU 关闭：通过在 -append 选项中加入 nopti
+
+KPTI 的本质是隔离内核态的页表和用户态的页表。*（个人理解）*当 KPTI 开启的时候，内核态页与用户态页严格分开，因此在内核态执行时用户态的页是无法被访问 / 执行的。而如果没有考虑 KPTI 的 Exp 执行时候，在完成控制流劫持之后通过 iretq 返回用户态之后，并没有将当前页表进行切换，从而导致当前用户态所访问的页表仍然是内核态的页表，而这些内核态的页在用户态是无法访问的，因此会造成页错误。
+
+通常有以下两种方式来绕过 KPTI，第一个是借助其触发的异常位于用户态的特点，使用 signal 处理函数来进行处理（在处理 signal 的时候不会递归触发错误，因此可以继续执行）：
+
+【To-Do】
+
+第二种方式是在 iretq 指令执行返回到用户态之前，对页表进行切换，将内核态页表和用户态页表换回来，从而防止触发页错误。可以通过查看 `swapgs_restore_regs_and_return_to_usermode()` 函数内的相关指令来获取切换页表的指令。例如：
+
+```c
+/* …… */
+fake_stack[off++] = (uint64_t) commit_creds;
+
+
+/* Bypass KPTI */
+fake_stack[off++] = (uint64_t) swapgs_restore_regs_and_return_to_usermode + 22;  // 因为这一串指令中包含了 swapgs 和 iretq 指令，所以不需要显示调用
+fake_stack[off++] = 0x0;
+fake_stack[off++] = 0x0;
+
+
+/* 把状态恢复好 */
+fake_stack[off++] = tf.rip;
+fake_stack[off++] = tf.cs;
+fake_stack[off++] = tf.rflags;
+fake_stack[off++] = tf.rsp;
+fake_stack[off++] = tf.ss;
+```
+
+### modprobe_path 覆盖利用方式
+
+* <https://lkmidas.github.io/posts/20210223-linux-kernel-pwn-modprobe/>
+
+`modprobe` 是一个用来添加 Linux 内核模块的程序，当向 Linux 中添加新的模块或者从 Linux 删除模块的时候，modprobe 会被调用。modprobe 的路径在内核中保存（modprobe_path），该变量位于可写页中（所以是可以被修改的），也可以通过 `/proc/kallsyms` 来获得。
+
+此外，如果执行一个未知文件签名格式的文件时，Linux 系统会按照以下路径调用函数：
+
+1. do_execve
+2. do_execveat_common
+3. bprm_execve
+4. exec_binprm
+5. search_binary_handler
+6. request_module
+7. call_modprobe
+
+最终 `call_modprobe` 会直接执行 `modprobe_path` 指定的文件，因此如果在 `/tmp/` 目录下新建一个脚本文件，并通过任意地址写原语将内核中 `modprobe_path` 的值进行修改，指向 `/tmp/` 中的脚本，最终可以在特权级别下执行。
+
+### 利用 Tips
+
+* 如果需要将内核栈迁移到用户态空间，可以使用 `xchg esp, e?x` 指令，因为该指令会将寄存器高 4 位置为 0，从而从内核态地址转移到用户态地址；
+* 如果获得了任意内存读写的原语，可以直接写 `task_struct` 结构中的 3 个 `cred` 结构体中的 uid、gid、……。为了找到 task_struct 的地址，可以使用 `prctl(PR_SET_NAME, “name”);` 设置最长 16 字节的字符串，这个字符串会被写入到 task_struct 的 comm 字段，然后通过任意读在内存中找这个字符串，则可以获取 task_struct 的地址；
