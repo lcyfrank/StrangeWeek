@@ -924,7 +924,7 @@
 
 <img src="./img/new_primitive/fs_result.png" width="600px">
 
-## Steelix: Program State Based Binary Fuzzing
+## Steelix: Program-State Based Binary Fuzzing
 
 *Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering.*
 
@@ -945,7 +945,7 @@
 
 由于共享内存的大小限制，作者需要将记录进度的内存大小尽可能地压缩。因此作者定义比较进度为从第一个字节或从最后一个字节开始，连续匹配的字节数量，例如下图：
 
-<img src="./img/steelix/compair_progress.png" width="900px">
+<img src="./img/steelix/compair_progress.png" width="600px">
 
 作者仅考虑路径 `1->2->6->12->16` 或路径 `1->5->11->15->16` 作为比较进度。假设当前位于状态 `2`，则只有当之后位于状态 `6` 的时候（或者 `12` 和 `16`）才认为比较进度有所递进。
 
@@ -953,6 +953,44 @@
 
 在模糊测试阶段，作者根据比较进度来定位到测试用例中与比较相关的字节位置。作者基于这样一个基本思想：如果当前字节是与比较相关的字节，那么这个字节周围的字节也会对比较产生影响。因此，在模糊测试过程中，作者根据比较过程反馈信息，如果当前的比较过程取得了推进，则记录刚刚突变的字节的位置（将这个测试用例作为中间状态保存），然后作者对这个字节前后的两个字节进行所有可能的尝试，作者称为 `local exhaustive mutation`。具体算法如下图所示：
 
-<img src="./img/steelix/algo.png" width="900px">
+<img src="./img/steelix/algo.png" width="600px">
 
 通过上述方法，可以在模糊测试过程中比较有效地、快速地探索出 Magic Bytes 实际的值，从而引导模糊测试往更深的位置探索。
+
+作者在 3 个数据集上对 **Steelix** 进行测试：LAVA-M、DARPA CGC 以及 5 个真实的程序（`tiff2pdf`、`tiffcp`、`pngfix`、`gzip`、`tcpdump`）。同时与 **AFL-dyninst**、**VUzzer**、**AFL-lafintel** 这几个工具进行对比，旨在回答以下 3 个问题：
+
+1. **Steelix** 的漏洞检测能力有多强？
+2. **Steelix** 的代码覆盖率有多高？
+3. **Steelix** 的负载开销有多少？
+
+在 LAVA-M 数据集上的效果如下图所示：
+
+<img src="./img/steelix/lava_m.png" width="600px">
+
+可以看到 **Steelix** 可以发现最多的漏洞。由此可以发现，大部分的漏洞会被一些 Magic Bytes 所保护。但是在 `unique` 中，效果不如 **VUzzer**，作者分析原因发现 **Steelix** 的突变粒度在进行局部突变时较小，而 **VUzzer** 都使用大粒度的突变，有利于对 `unique` 中程序的探索。
+
+在 CGC 数据集上的测试中，作者分析发现当提供的初始种子集较完备时，**AFL-dyninst** 与 **Steelix** 都能取得较好的效果，但是当初始种子集不完备时，**Steelix** 效果比较好。
+
+针对真实世界的 5 个程序的实验结果如下图所示：
+
+<img src="./img/steelix/real_world_crash.png" width="600px">
+
+<img src="./img/steelix/real_world.png" width="600px">
+
+可以看到在漏洞挖掘能力以及 Crash 发现上，**Steelix** 均能取得较好的效果。
+
+在覆盖率的实验上，作者采用覆盖的行、覆盖的函数覆盖的分支以及新产生的测试用例的数量来表示覆盖率的多少（因为对比的工具都是基于 AFL 的，所以还算合理），结果如下图所示：
+
+<img src="./img/steelix/cov.png" width="900px">
+
+可以看到 **Steelix** 所产生的覆盖率都有有效地提升。
+
+最后作者对 **Steelix** 带来的额外开销作了一个实验，首先作者分析了插桩的比较基本块经过两个策略之后剩下的数量，如下表所示：
+
+<img src="./img/steelix/comparison.png" width="600px">
+
+而所带来的额外的开销导致的执行速度的下降如下表所示：
+
+<img src="./img/steelix/execution_speed.png" width="600px">
+
+可以看到速度并没有下降很多，但是效果提升了很多。
