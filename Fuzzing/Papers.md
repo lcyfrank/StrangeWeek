@@ -924,7 +924,7 @@
 
 <img src="./img/new_primitive/fs_result.png" width="600px">
 
-## Steelix: Program-State Based Binary Fuzzing
+## Steelix: Program State Based Binary Fuzzing
 
 *Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering.*
 

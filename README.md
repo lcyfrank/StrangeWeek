@@ -12,8 +12,8 @@ I create this Repository to **RECORD** my *learning progress*.
   * Some papers about how to solve problems by static / dynamic analysis.
 * **[Deep Learning and Program](./DLP)**
   * Some papers about how to solve security problems by *Deep Learning*.
-* **[Java Script Engine](./JSEngine)**
-  * Some papers or articles related to the security of Java Script Engine.
+* **[JavaScript Engine](./JSEngine)**
+  * Some papers or articles related to the security of JavaScript Engine.
 * **[Kernel](./Kernel)**
   * Some basic knowledges learned about kernel.
 * **[Software Engineering](./SE)**
