@@ -30,6 +30,7 @@
 
 ## Feedback
 
+* [Steelix: Program-State Based Binary Fuzzing](#steelix-program-state-based-binary-fuzzing)
 * [CollAFL: Path Sensitive Fuzzing](#collafl-path-sensitive-fuzzing)
 * [IJON: Exploring Deep State Spaces via Fuzzing](#ijon-exploring-deep-state-spaces-via-fuzzing) [![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/ijon)
 
@@ -922,3 +923,36 @@
 最后对文件系统的速率与不同的介质进行了实验，结果如下：
 
 <img src="./img/new_primitive/fs_result.png" width="600px">
+
+## Steelix: Program-State Based Binary Fuzzing
+
+*Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering.*
+
+这篇文章的工作主要聚焦于模糊测试过程中对 **Magic Bytes** 比较判断的绕过。作者做的工作和 **[AFL-lafintel](./laf-intel.md)** 有点类似，但是 **AFL-Lafintel** 只能在具有源码的情况下完成，所实现的功能较为简单，且无法定位到测试用例中对应的 **Magic Bytes** 的位置。作者提出的方法可以在二进制程序中通过插桩完成，同时较详细地记录了模糊测试过程中的比较进度，还能定位到测试用例中需要突变的字节。基于这个思想，作者提出了 **Steelix**，其基本流程如下图所示：
+
+<img src="./img/steelix/overview.png" width="900px">
+
+其主要分为 3 个基本组成：静态分析、二进制插桩、以及模糊测试。
+
+具体地，在静态分析阶段，首先会识别出所有比较指令（`cmp` 和 `test` 指令），此外，对于字符串比较，则识别出 `strcmp` 和 `strncmp` 等方法（*对于去掉符号表的该咋办？*）。同时，由于插桩会带来性能的损耗，因此在找到这些比较的指令之后，作者还对他们进行了过滤，删去一些不感兴趣的比较指令：
+
+* 单字节的比较：因为单字节的比较可以被轻易识别出来，因此没有必要；
+* 对于函数返回值的比较：无法准确判断函数返回值的具体的值，因此对于函数返回值的比较会引入很大的不精确性；
+
+在过滤了不感兴趣的比较指令之后，对于每一个比较指令，提取其信息进行记录，包括指令地址，操作数类型和操作数实际值等。
+
+接下来是对二进制的插桩。由于除了针对立即数的比较，静态分析无法直接获得比较的真实值。因此作者通过插桩，对比较的进度进行记录，并反馈给模糊测试工具。
+
+由于共享内存的大小限制，作者需要将记录进度的内存大小尽可能地压缩。因此作者定义比较进度为从第一个字节或从最后一个字节开始，连续匹配的字节数量，例如下图：
+
+<img src="./img/steelix/compair_progress.png" width="900px">
+
+作者仅考虑路径 `1->2->6->12->16` 或路径 `1->5->11->15->16` 作为比较进度。假设当前位于状态 `2`，则只有当之后位于状态 `6` 的时候（或者 `12` 和 `16`）才认为比较进度有所递进。
+
+在插桩阶段，根据比较指令的不同（`cmp` 等指令还是 `strcmp` 等函数）而有所区别。对于比较指令，根据之前记录等比较操作数信息，在比较指令之前提取操作数的具体值，然后生成当前的比较进度。对于调用函数来进行比较的，作者实现了对应版本的函数，该函数的功能与原函数相同，仅增加了对比较进度的生成逻辑。
+
+在模糊测试阶段，作者根据比较进度来定位到测试用例中与比较相关的字节位置。作者基于这样一个基本思想：如果当前字节是与比较相关的字节，那么这个字节周围的字节也会对比较产生影响。因此，在模糊测试过程中，作者根据比较过程反馈信息，如果当前的比较过程取得了推进，则记录刚刚突变的字节的位置（将这个测试用例作为中间状态保存），然后作者对这个字节前后的两个字节进行所有可能的尝试，作者称为 `local exhaustive mutation`。具体算法如下图所示：
+
+<img src="./img/steelix/algo.png" width="900px">
+
+通过上述方法，可以在模糊测试过程中比较有效地、快速地探索出 Magic Bytes 实际的值，从而引导模糊测试往更深的位置探索。
