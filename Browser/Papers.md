@@ -1,6 +1,6 @@
 # Papers
 
-* [Finding and Preventing Bugs in JavaScript Bindings](#finding-and-preventing-bugs-in-javascript-bindings)
+* [Finding and Preventing Bugs in JavaScript Bindings](#finding-and-preventing-bugs-in-javascript-bindings)：针对 JavaScript 引擎中 JavaScript 语言与高级语言的 Binding 机制中的漏洞进行分析和挖掘；
 
 
 ---
