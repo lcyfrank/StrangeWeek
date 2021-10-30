@@ -40,7 +40,11 @@
 * [FOT: A Versatile, Configurable, Extensible Fuzzing Framework](#fot-a-versatile-configurable-extensible-fuzzing-framework)
 * [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
 * [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
-* [Designing New Operating Primitives to Improve Fuzzing Performance](designing-new-operating-primitives-to-improve-fuzzing-performance)
+* [Designing New Operating Primitives to Improve Fuzzing Performance](#designing-new-operating-primitives-to-improve-fuzzing-performance)
+
+## Specific Target
+
+* [NYX: Greybox Hypervisor Fuzzing using Fast Snapshots and Affine Types](#NYX-Greybox-Hypervisor-Fuzzing-using-Fast-Snapshots-and-Affine-Types)
 
 ---
 
@@ -1067,3 +1071,53 @@
 <img src="./img/redqueen/vulns.png" width="700px">
 
 最后，作者进行了一些案例分析。
+
+## NYX: Greybox Hypervisor Fuzzing using Fast Snapshots and Affine Types
+
+*30th USENIX Security Symposium (USENIX Security 21). 2021*
+
+本文聚焦于 **hypervisor** 程序的 Fuzzing 工作。**hypervisor** 也被认为是虚拟机监视器，为在同一个物理机器下运行的不同的虚拟机提供安全边界，为了更好地发现 **hypervisor** 的漏洞，保证云环境的安全，这篇文章的作者提出了名为 **NYX** 的基于覆盖率的模糊测试工具。
+
+作者首先比较了之前的两个工作 **VDF** 和 **Hyper-Cube**，其中 **VDF** 是基于覆盖率的，而 **Hyper-Cube** 没有使用任何覆盖率反馈信息，但是很神奇的是 **Hyper-Cube** 的效果要比 **VDF** 好，作者分析这是由于 **VDF** 在模拟设备的时候太慢了，影响了整个模糊测试效率。除此之外，现有针对 **hypervisor** 的模糊测试工具要么将部分代码剥离出来放到用户态执行，来获得代码覆盖率，但是这种方法需要大量的人工干预，无法直接适用于所有的 **hypervisor**，而且会产生大量的误报和漏报；要么就完全不采用覆盖率反馈信息，但是这种方法无法有效地指引目标运行到有趣的位置。而作者提出的 **NYX** 则在不将 **hypervisor** 代码剥离出来的情况下，实现了基于覆盖率的反馈信息。
+
+作者首先介绍了 **hypervisor** 的相关背景知识，并介绍了针对 **hypervisor** 模糊测试的一些挑战。其中包括 **hypervisor** 通常在特权级运行，因此很难获得覆盖率信息以及对它们的 Crash 进行捕获。此外，由于 **hypervisor** 是高度依赖于状态的，同时管理多个虚拟机，因此当前的测试用例输入之后的状态会被上一个测试用例的输入所影响。最后，**hypervisor** 的输入不是一个良好组成的输入，通常会有一些很复杂的交互操作。作者分别就上述几个挑战提出了解决方案。
+
+对于覆盖率的获取，作者通过使用嵌套虚拟化（KVM 提供该支持），将需要被测试的 **hypervisor** 嵌套在主 **hypervisor** 模拟运行起来的虚拟机中，然后借助 **Intel-PT** 插桩技术，对被测试的 **hypervisor** 的覆盖率进行记录。
+
+对于状态的恢复，主要借助 **Page Modification Logging** 这个硬件特性，该特性会记录虚拟机在运行期间修改的内存页。为了加速对这些内存页的恢复，作者扩展优化了这一特性，引入一个新的与栈结构类似的缓冲区，用来存储被修改的页的基地址，这样可以快速定位到被修改的页（作者称为 **Dirty Page Tracker**）。此外，对于执行过程中修改的一些模拟驱动的状态，也通过维护一系列的内存来对其进行恢复。在模糊测试的过程中，需要被测试的 **hypervisor** 与模糊测试工具交互（例如传递测试用例等），因此作者提供了一些 **hypercalls**，可以使得被测 **hypervisor** 中运行的客户系统直接与模糊测试工具交互。具体在实现的时候，作者使用了增量更新，即在刚启动虚拟机时，首先保存整个虚拟机的完整快照，之后在模糊测试过程中，目标系统与模糊测试工具交互，当需要进行增量更新时，用当前的快照与初始化时生成的快照求得差集，仅更新改变的地方。
+
+对于复杂交互的生成，作者提出了一种新的基于有向无环图的中间表示形式，其中每个节点表示单个函数调用，每条边表示函数之间的值的传递。其中函数的参数可以是值，也可以是引用。如果是单一的值，则说明这个参数在之后无法被使用，而如果是引用，则这个值可以在之后还被使用。一个测试用例的图如下所示：
+
+<img src="./img/nyx/dag.png" width="600px">
+
+之后，模糊测试的突变是基于上述这个图来进行的，在得到图之后，会解析生成相应的 C 程序代码。
+
+基于上述的技术点，作者实现的 **NYX** 的整体架构如下图所示：
+
+<img src="./img/nyx/arch.png" width="900px">
+
+因此，总的来说，作者所做的贡献有以下几点：
+
+* 将嵌套虚拟化与 **Intel-PT** 等技术相结合，使得目标 **hypervisor** 在不需要被拆分代码到用户态执行的情况下，可以获得目标执行的代码覆盖情况；
+* 实现一个快速的快照恢复机制，结合 **Page Modification Logging** 特性，快速追踪在虚拟机执行的过程中被修改的内存，并在每次重新开始时快速恢复快照；
+* 一套基于图的测试用例生成 / 图片机制，可以更精准地生成有效的测试用例；
+
+**NYX** 的工作流程如下图所示：
+
+<img src="./img/nyx/process.png" width="900px">
+
+首先，由运行在目标 **hypervisor** 中的 **Agent OS**（作者改自 **Hyper-Cube OS**）申请一段用于放置测试用例的缓冲区，之后向模糊测试工具发送开始模糊测试的命令，这时会让 **QEMU-PT** 保存当前的程序状态，创建快照。在创建完快照之后，会通知模糊测试工具生成测试用例，之后将生成的测试用例通过 `ioctl` 让 **Agent OS** 进行执行。执行完之后会继续通知 **QEMU-PT** 解析保存当前的覆盖状态，同时恢复快照，以进行下一轮。
+
+在评测阶段，作者针对 **QEMU 5.0.0** 和 **bhyve 12.1** 分别进行测试。
+
+首先，作者针对一些驱动设备与 **Hyper-Cube** 进行测试（为了证明基于覆盖率指导是否有提高作用），为了公平起见，作者将（测试用例生成 / 突变引擎）特定的语法与 **Hyper-Cube** 保持基本一致，实现 **NYX-Legacy**，然后比较覆盖率，发现对于简单的驱动程序，确实提高的不多，但是对于复杂的驱动程序，能提升很高的覆盖率，如下图所示：
+
+<img src="./img/nyx/coverage_legacy.png" width="500px">
+
+之后，作者验证其突变引擎的特定语法对模糊测试性能的影响，如下图所示，其中 **NYX-Spec** 是给定了特定语法的结果，可以看到特定语法对模糊测试的性能有比较大的影响。
+
+<img src="./img/nyx/spec.png" width="500px">
+
+作者还对其实现的快照恢复机制进行了实验，可以看到随着内存页的增多，恢复速度有所下降（但是总的还是比 QEMU 本身的快照恢复机制快），经过与 **AFL** 的 `forkserver` 比较，虽然速度较慢，但是恢复的页面适量却多得多（比如能对文件系统进行恢复），更有利于在 **hypervisor** 层面的模糊测试。
+
+<img src="./img/nyx/snapshot.png" width="500px">
