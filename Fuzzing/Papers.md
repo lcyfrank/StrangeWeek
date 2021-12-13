@@ -41,6 +41,9 @@
 * [PAFL: Extend Fuzzing Optimizations of Single Mode to Industrial Parallel Mode](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)
 * [EnFuzz: Ensemble Fuzzing with Seed Synchronization among Diverse Fuzzers](#enfuzz-ensemble-fuzzing-with-seed-synchronization-among-diverse-fuzzers)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/enfuzz/enfuzz)
 * [Designing New Operating Primitives to Improve Fuzzing Performance](#designing-new-operating-primitives-to-improve-fuzzing-performance)
+* [Towards Systematic and Dynamic Task Allocation for Collaborative Parallel Fuzzing](#towards-systematic-and-dynamic-task-allocation-for-collaborative-parallel-fuzzing)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/MelbourneFuzzingHub/aflteam)
+
+
 
 ## Specific Target
 
@@ -1121,3 +1124,29 @@
 作者还对其实现的快照恢复机制进行了实验，可以看到随着内存页的增多，恢复速度有所下降（但是总的还是比 QEMU 本身的快照恢复机制快），经过与 **AFL** 的 `forkserver` 比较，虽然速度较慢，但是恢复的页面适量却多得多（比如能对文件系统进行恢复），更有利于在 **hypervisor** 层面的模糊测试。
 
 <img src="./img/nyx/snapshot.png" width="500px">
+
+## Towards Systematic and Dynamic Task Allocation for Collaborative Parallel Fuzzing
+
+*ASE-NIER 2021*
+
+这篇文章聚焦于多实例模糊测试之间的协作。文章提到默认的 **AFL** 以及 **LibFuzzer** 的多实例协作机制存在一些问题，即在多个实例之间简单地同步种子目录，导致多个实例在同步之后均具有相同的种子，基于相同的种子突变之后会探索相同的程序空间，从而导致多实例的计算性能被浪费，如下图所示：
+
+<img src="./img/aflteam/afl_default.png" width="500px">
+
+作者在 **LibPNG** 上做实验，发现多个实例之间的覆盖率重叠高达 `95%`，因此确定了这一问题的存在。而且在默认 **AFL** 实现的同步机制中，没有将路径频繁度、分支命中数量等有用的信息同时同步过来。
+
+目前有的一些工作，例如 [**PAFL**](#pafl-extend-fuzzing-optimizations-of-single-mode-to-industrial-parallel-mode)，通过所有实例在同一个中心种子集合里面获取测试用例来缓解这一问题，但是仍然存在没有很好地将任务进行划分的问题。而 PAFL 中使用的任务划分方式也是依赖于随机的 Bitmap，并未考虑到程序的结构，因此可能没有办法到达最优解。
+
+基于此，作者提出了一种多个模糊测试实例之间协同的方式。总的架构图如下所示：
+
+<img src="./img/aflteam/workflow.png" width="600px">
+
+作者使用 **LLVM** 提取得到目标程序的函数调用图，在得到函数调用图之后，作者使用一个函数内部的基本块数量作为每一个函数的初始权重，然后使用现有的图划分算法对图进行划分，将其拆分成不同的部分，从而实现子任务划分。此外作者提到有一些间接调用可能无法直接提取，因此需要对插桩方式进行修改，从而获得间接跳转信息，实时更新函数调用图。
+
+在获得每个子任务的划分之后，每一个实例使用过滤的方式，如果当前种子没有触碰到目标区域，则跳过该种子不进行 Fuzzing，从而实现多实例模糊测试过程的任务划分。
+
+由于这篇文章是发在 *ASE-NIER* 上的，作者只是提了一个想法并做了简单的实现，因此没有做的太完备，实验也比较简略，作者在 10 个核上部署模糊测试实例，并执行 10 个小时，以下是实验结果：
+
+<img src="./img/aflteam/env.png" width="600px">
+
+*PS：这篇文章跟我现在在做的一个工作高度相似，包括其对问题的提出和发现都跟我的一样，不过在实现的方法上有些许差别。之前一直对自己做的这个课题能不能被别人认可产生怀疑，现在看到这篇文章感觉能稍微对自己起到一些激励作用。*
