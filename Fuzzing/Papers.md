@@ -20,6 +20,7 @@
 * [FairFuzz: A Targeted Mutation Strategy for Increasing Greybox Fuzz Testing Coverage](#fairfuzz-a-targeted-mutation-strategy-for-increasing-greybox-fuzz-testing-coverage)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/carolemieux/afl-rb)
 * [GREYONE: Data Flow Sensitive Fuzzing](#greyone-data-flow-sensitive-fuzzing)
 * [REDQUEEN: Fuzzing with Input-to-State Correspondence](#redqueen-fuzzing-with-input-to-state-correspondence)[![Open Source](https://badgen.net/badge/Open%20Source%20%3F/Yes/green?icon=github)](https://github.com/RUB-SysSec/redqueen)
+* [EMS: History-Driven Mutation for Coverage-based Fuzzing](#ems-history-driven-mutation-for-coverage-based-fuzzing)
 
 ## Binary-Only
 
@@ -1150,3 +1151,67 @@
 <img src="./img/aflteam/env.png" width="600px">
 
 *PS：这篇文章跟我现在在做的一个工作高度相似，包括其对问题的提出和发现都跟我的一样，不过在实现的方法上有些许差别。之前一直对自己做的这个课题能不能被别人认可产生怀疑，现在看到这篇文章感觉能稍微对自己起到一些激励作用。*
+
+## EMS: History-Driven Mutation for Coverage-based Fuzzing
+
+*NDSS 2022*
+
+这篇文章的作者认为，目前所有针对模糊测试进行改进、提高的工作中，都忽略了模糊测试过程的历史信息中提供的一些有用的信息，特别是在模糊测试过程中的历史突变策略，里面可能包含对部分程序路径约束进行求解的方法。作者所基于的假设是如果一些突变组合使得测试用例突变后触发到了独特的路径，则突变组合可能包含类似的突变策略。作者在一些程序上做了验证，最终发现在某一批次内的模糊测试历史（intra-trial fuzzing history）和不同批次的模糊测试历史（inter-trial fuzzing history）都会对模糊测试的指导很有意义。
+
+作者提到，为了使用模糊测试的历史，主要的一个挑战是如何捕捉并保存突变策略，即如何通过给定测试用例中的输入字节，得出对应的突变的之和突变的类型，使得突变的结果能够触发到独特的程序路径。
+
+作者提出了概率字节定向模型（Probabilistic Byte Orientation Model），来学习和重用突变策略。首先作者将突变操作划分成三类：**overwrite**、**delete** 和 **insert**，对于测试用例中的每个突变操作，记录突变的字节，突变的字节长度以及突变的类型。如果这个突变触发了新的独特的路径，则将这个突变策略作为训练集保存，之后使用训练集训练上面提到的过程间的模型（inter-PBOM）。同时，作者还会利用过程内到历史数据，因此通过增量更新的方式训练过程内的模型（intra-PBOM）。作者通过上述思想实现了 EMS 框架，该框架可以集成到大部分基于突变的模糊测试工具中。作者最后是通过集成在 MOpt 中来实现的原型系统。
+
+作者提出这种思想的基本动机是在同一个程序中，存在比较相似的函数调用，此外还存在类似的约束值（例如 Magicbytes 和校验和等），由于这些相似性特征的存在，可以复用历史过程中出现的突变策略。另外，即使对于不同的程序，作者认为它们之间可能使用了相同的软件库等，也可以对突变策略的历史信息进行利用。
+
+为了验证其提出来的动机，作者观察了几个程序的汇编指令，发现其中很多程序确实复用了很多立即数，很多立即数都在单个程序中多次出现，此外，作者还发现即使在不同的程序中，也会使用到很多相同的立即数。作者还观察模糊测试过程中命中的不同程序的分支，发现不同程序存在大量相同的基本块，而这些基本块基本具有相同的约束。因此，基于上述发现，可以将很多有效的突变策略总结出来用于指导对程序进行模糊测试。作者最终实现的 EMS 系统的整体框架图如下图所示。
+
+<img src="./img/ems/framework.png" width="800px">
+
+在模糊测试开始时，EMS 会执行 Inter-PBOM 模型的初始化工作，之后在模糊测试过程中，会使用 Inter-PBOM 和 Intra-PBOM 来指导对测试用例的突变，之后会使用操作分析和数据收集来持续地更新 Intra-PBOM 模型。
+
+为了完成 Inter-PBOM 模型的初始化工作，EMS 首先提取所有的字节和对应的突变策略，统计每个突变出现的频率，然后计算每个输入字节对应的每个突变策略的概率，从而完成 Inter-PBOM 模型的构造。
+
+在使用模型指导的过程中，首先会通过概率选择需要对输入字节进行突变的长度，之后使用输入字节搜索对应的突变策略，最后通过突变策略结合输入字节得到突变后的字节。
+
+在后续的操作分析和数据收集的过程中，EMS 会记录原始字节值，突变类型，对应的突变之后的字节值以及突变的位置。之后，如果该突变测试用例能触发到新的分支，则将上述对应的这些信息作为有效测试用例进行保存，用于后续更新 Intra-PBOM 模型。
+
+在 Intra-PBOM 更新的过程中，EMS 分析了在这个过程中收集到的有效的突变策略，然后使用这些数据对模型进行更新。
+
+为了防止在模糊测试过程中引入大量的开销，作者最终使用 Hash 表来表示 PBOM 模型，结构如下图所示。
+
+<img src="./img/ems/data_structure.png" width="600px">
+
+其中，索引为输入字节的哈希值。
+
+作者在实验过程中选取了大量的模糊测试工具，并选择了一些真实程序作为模糊测试的目标：
+
+<img src="./img/ems/target.png" width="600px">
+
+作者使用发现的漏洞数量和覆盖的代码量作为衡量指标，对于每个模糊测试实例，作者运行 168 小时，最终发现的漏洞数量如下表所示：
+
+<img src="./img/ems/vuln_cnt.png" width="600px">
+
+可以看出来作者所实现的方法发现的漏洞数量是最多的。另外作者将所发现的这些漏洞与已有的 CVE 数据进行比对，统计出所发现的这些漏洞中的 CVE 的数量，如下表所示：
+
+<img src="./img/ems/cve_cnt.png" width="600px">
+
+之后作者对覆盖率进行了基本的测试，测试结果如下图：
+
+<img src="./img/ems/coverage.png" width="600px">
+
+然后作者还测了时间覆盖率曲线，如下图所示（这图都看不清啊）：
+
+<img src="./img/ems/time_coverage.png" width="600px">
+
+作者也使用 FuzzBench 测了模糊测试的性能，也能证明 EMS 可以取得比较好的效果。
+
+最后，作者还是用了不同的种子集合（空种子和初始有文件的种子）以及不同的 Sanitizers 来测试模糊测试工具的漏洞挖掘效率，发现 EMS 总能发现最多的漏洞，因此验证了 EMS 的有效性。
+
+<img src="./img/ems/vuln_cnt_seeds.png" width="600px">
+
+此外，为了验证 PBOM 的有效性，作者记录模糊测试过程中通过 PBOM 指导后突变所发现的漏洞数量以及通过传统突变方式所发现的漏洞数量，如下图所示，可以看到 PBOM 对突变的指导可以提升一些对漏洞挖掘的能力：
+
+<img src="./img/ems/pbom_eff.png" width="900px">
+
+作者还统计，通过 PBOM 指导突变之后，平均可以通过 2.98 次突变即可触发新路径，比原始突变的 46.11 次小很多。之后作者还通过实验验证了所收集的突变策略分别在不同程序之间以及相同程序之间均具有一定的有效性。
